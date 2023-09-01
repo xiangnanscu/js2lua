@@ -1,0 +1,15 @@
+public
+logs
+node_modules
+public
+tmp
+dist
+nginx.conf
+.vscode
+.github
+.npmrc
+index.html
+vite.config.js
+yarn.lock
+src/*
+!src/lua2js.mjs

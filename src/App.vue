@@ -1,38 +1,152 @@
 <script setup>
-// This starter template is using Vue 3 <script setup> SFCs
-// Check out https://vuejs.org/api/sfc-script-setup.html#script-setup
-import MainPage from './components/MainPage.vue'
-import packages from '../package.json'
+import { ref, computed, watch } from "vue";
+import { js2lua, js2ast } from "./js2lua.mjs";
+import fs from "file-saver";
+import printLua from "@prettier/plugin-lua/src/printer.js";
+
+const parseOptions = {};
+const luacodeRef = ref(null);
+const showjsAst = ref(false);
+const jscode = ref(`\
+const message = "Hello, World!";
+`);
+// jscode.value = `function foo.bar(self)
+
+// end
+// local Child = class({
+//   echo = function(self) end
+// }, Parent)`
+const optionNamesDict = {
+  printToConsoleLog: true,
+  tryUseOfLoop: true,
+  indexMinusOne: true,
+  returnNilToThrow: true,
+  errorToThrow: true,
+  tostring: true,
+  dict: true,
+  list: true,
+  unpack: true,
+  tonumber: true,
+  class: true,
+  selfToThis: true,
+  clsToThis: true,
+  typeToTypeof: true,
+  stringFormat: true,
+  tableConcat: true,
+  tableInsert: true,
+  camelStyle: false,
+};
+const optionNames = Object.keys(optionNamesDict);
+const selectNames = ref(
+  Object.entries(optionNamesDict)
+    .filter(([k, v]) => v)
+    .map(([k, v]) => k)
+);
+const selectOptions = computed(() => Object.fromEntries(selectNames.value.map((e) => [e, true])));
+const luacode = computed(() => js2lua(jscode.value, selectOptions.value));
+
+const jsast = computed(() => js2ast(jscode.value, selectOptions.value));
+function copylua() {
+  CopyToClipboard("luacode");
+}
+function saveluaAs() {
+  fs.saveAs(new Blob([luacode.value]), "test.lua");
+}
+function CopyToClipboard(containerid) {
+  if (window.getSelection) {
+    if (window.getSelection().empty) {
+      // Chrome
+      window.getSelection().empty();
+    } else if (window.getSelection().removeAllRanges) {
+      // Firefox
+      window.getSelection().removeAllRanges();
+    }
+  } else if (document.selection) {
+    // IE?
+    document.selection.empty();
+  }
+
+  if (document.selection) {
+    const range = document.body.createTextRange();
+    range.moveToElementText(document.getElementById(containerid));
+    range.select().createTextRange();
+    document.execCommand("copy");
+  } else if (window.getSelection) {
+    const range = document.createRange();
+    range.selectNode(document.getElementById(containerid));
+    window.getSelection().addRange(range);
+    document.execCommand("copy");
+  }
+}
+const checkAll = ref(false);
+watch(checkAll, (checkAll) => {
+  if (checkAll) {
+    selectNames.value = [...optionNames];
+  } else {
+    selectNames.value = [];
+  }
+});
 </script>
 
 <template>
-  <h1><a href="https://github.com/xiangnanscu/lua2js">{{ packages.name }}-{{packages.version}}</a> - transform lua to js
-    literally</h1>
-  <MainPage />
+  <div>
+    <div class="row">
+      <div class="col"></div>
+    </div>
+    <div class="row">
+      <div class="col-1">
+        <div :class="{ 'error-wrapper': error }">
+          <div class="form-check">
+            <input class="form-check-input" type="checkbox" id="label-all" v-model="checkAll" />
+            <label class="form-check-label" for="label-all" style="color: red"> select all </label>
+          </div>
+          <div v-for="(c, i) of optionNames" :key="i" :class="{ 'form-check': true }">
+            <input class="form-check-input" type="checkbox" :id="`label` + i" v-model="selectNames" :value="c" />
+            <label class="form-check-label" :for="`label` + i">
+              {{ c }}
+            </label>
+          </div>
+        </div>
+      </div>
+      <div class="col">
+        <button @click="jscode = ''">clear textarea</button>
+        <textarea
+          rows="10"
+          style="height: 800px"
+          class="form-control"
+          :value="jscode"
+          @input="jscode = $event.target.value"
+        ></textarea>
+      </div>
+      <div class="col">
+        <div class="form-check-inline">
+          <label class="form-check-label">
+            <input @input="showjsAst = !showjsAst" :value="showjsAst" type="checkbox" class="form-check-input" />show js
+            ast</label
+          >
+        </div>
+        <div v-if="showjsAst">
+          <pre>{{ jsast }}</pre>
+        </div>
+        <div v-else>
+          <highlightjs language="javascript" :code="jscode" />
+        </div>
+      </div>
+      <div class="col">
+        <button @click="copylua">copy lua</button>
+        <button @click="saveluaAs">save as</button>
+        <highlightjs id="luacode" language="lua" :code="luacode" />
+      </div>
+    </div>
+  </div>
 </template>
 
 <style lang="scss">
-$enable-caret: true !default;
-$enable-rounded: false !default;
-$enable-shadows: false !default;
-$enable-gradients: false !default;
-$enable-transitions: true !default;
-$enable-grid-classes: true !default;
-$enable-print-styles: true !default;
-
-$blue: #04405e !default;
-// $navbar-light-color: #d8d8d8;
-// $navbar-light-hover-color: #fff;
-// $navbar-light-active-color: #fff;
-// $dark: #417690;
-// $navbar-light-active-color: #fff;
-// $navbar-dark-color:                #fff !default;
-// $navbar-dark-hover-color:          #fff !default;
-// $light: #417690;
-$sidebar-background-color: #eeeeee;
-$sidebar-hover-color: #37424f;
 @import "node_modules/bootstrap/scss/bootstrap.scss";
 span.hljs-string {
-  color: #22863A
+  color: #22863a;
+}
+.col {
+  overflow: scroll;
 }
 </style>

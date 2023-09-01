@@ -12,4 +12,4 @@ index.html
 vite.config.js
 yarn.lock
 src/*
-!src/lua2js.mjs
+!src/js2lua.mjs

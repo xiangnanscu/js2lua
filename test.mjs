@@ -1,4 +1,4 @@
-import { lua2js } from "./src/lua2js.mjs"
+import { js2lua } from "./src/js2lua.mjs"
 
 const luacode = `
 local function snake_case_name(x, y)
@@ -59,5 +59,5 @@ local TestClass = class {
 }
 `
 
-console.log(lua2js(luacode))
+console.log(js2lua(luacode))
 console.log('test passed!')

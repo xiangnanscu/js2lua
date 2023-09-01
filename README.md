@@ -1,3 +1,3 @@
-# lua2js
-[lua2js](https://xiangnanscu.github.io/lua2js/)
+# js2lua
+[js2lua](https://xiangnanscu.github.io/js2lua/)
 transform lua to js literally.

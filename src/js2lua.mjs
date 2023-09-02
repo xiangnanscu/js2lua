@@ -1,20 +1,382 @@
+/* eslint-disable no-duplicate-case */
 
 import { parse } from "@babel/parser"
+import { formatText } from 'lua-fmt';
 
 const options = {
   sourceType: "module",
 };
 
 
-function js2lua() {
-
+function p() {
+  console.log.apply(this, arguments)
 }
 
 function js2ast(code) {
-  const ast = parse(code, options);
+  const ast = parse(code);
   return ast
 }
+const luaKeyWords = {
+  true: 1,
+  false: 1,
+  continue: 1,
+  end: 1,
+}
+const logic_map = {
+  '!': 'not',
+  '&&': "and",
+  '||': 'or',
+  '===': '==',
+  '==': '==',
+  '!==': '~=',
+  '!=': '~=',
+}
 
+function walkNode(node, callback) {
+  if (typeof node !== 'object') {
+    return
+  }
+  for (const [key, value] of Object.entries(node)) {
+    if (typeof value == 'object' && value && value.type) {
+      const stop = callback(value)
+      if (stop) {
+        return stop
+      }
+      walkNode(value, callback)
+    } else if (Array.isArray(value)) {
+      for (const e of value) {
+        const stop = callback(e)
+        if (stop) {
+          return stop
+        }
+        walkNode(e, callback)
+      }
+    }
+  }
+}
+function findNodeByType(ast, type) {
+  let find;
+  const test = (node) => {
+    if (node.type === type) {
+      find = node
+      return true
+    }
+  }
+  walkNode(ast, test)
+  return find
+}
+
+function ast2lua(ast, options) {
+  p(ast)
+  const getDefaultTokens = (params) => params.filter(p => p.type == 'AssignmentPattern')
+    .map(p => `if ${_ast2lua(p.left)} == nil then ${_ast2lua(p.left)} = ${_ast2lua(p.right)} end`).join(';')
+  function _ast2lua(ast) {
+    switch (ast.type) {
+      case "File":
+        return ast.program.body.map(_ast2lua).join(';\n')
+      case "VariableDeclaration": {
+        const res = []
+        for (const d of ast.declarations) {
+          const declarePrefix = ast.ForOfStatement ? '' : 'local '
+          let assignment;
+          if (!d.init) {
+            assignment = `${_ast2lua(d.id)}`
+          } else if (d.id?.type == 'ArrayPattern') {
+            assignment = `${_ast2lua(d.id).slice(1, -1)} = unpack(${_ast2lua(d.init)})`
+          } else if (d.id?.type == 'ObjectPattern') {
+            const varibles = d.id.properties.map(p => p.type == 'RestElement' ? _ast2lua(p.argument) : `${_ast2lua(p.value)}`)
+            const assignments = d.id.properties.map(p => {
+              if (p.type == 'RestElement') {
+                const restArg = _ast2lua(p.argument)
+                const restCond = d.id.properties.slice(0, -1).map(p => `k ~= "${_ast2lua(p.key)}"`).join(' and ')
+                return `${restArg} = {};
+                for k, v in pairs(__tmp) do
+                if ${restCond} then
+                  ${restArg}[k] = v
+                end
+                end`
+              } else {
+                const key = _ast2lua(p.key)
+                const init = luaKeyWords[key] ? `__tmp["${key}"]` : `__tmp.${key}`
+                return `${_ast2lua(p.value)} = ${init}`
+              }
+            }).join(';')
+            assignment = `${varibles.join(', ')};do local __tmp = ${_ast2lua(d.init)}; ${assignments} end`
+          } else {
+            assignment = `${_ast2lua(d.id)} = ${_ast2lua(d.init)}`
+          }
+          res.push(`${declarePrefix}${assignment}`)
+        }
+        // p(res.join(';'))
+        return res.join(';')
+      }
+      case "VariableDeclarator":
+        if (ast.id.type == "ObjectPattern") {
+          return `local c = ${_ast2lua(ast.init)}`
+        }
+        return `local ${_ast2lua(ast.id)} = ${_ast2lua(ast.init)}`
+      case "Identifier": {
+        const id = ast.name || ast.identifierName
+        if (id == 'undefined') {
+          return 'nil'
+        }
+        return `${luaKeyWords[id] ? '_' + id : id}`
+      }
+      case 'NumericLiteral':
+        return `${ast.value}`
+      case "StringLiteral": {
+        return `"${ast.value.replaceAll('\\', '\\\\').replaceAll('"', '\\"')}"`
+      }
+      case "IfStatement": {
+        return `if ${_ast2lua(ast.test)} then ${_ast2lua(ast.consequent)} ${ast.alternate ? ` else ${_ast2lua(ast.alternate)}` : ''} end`
+      }
+      case "BlockStatement": {
+        return `${ast.body.map(_ast2lua).join(';')}`
+      }
+      case "CallExpression": {
+        ast.callee.CallExpression = true
+        return `${_ast2lua(ast.callee)}(${ast.arguments?.map(_ast2lua).join(', ')})`
+      }
+      case "ExpressionStatement": {
+        return `${_ast2lua(ast.expression)}`
+      }
+      case "BinaryExpression": {
+        if (ast.operator == 'instanceof') {
+          return `getmetatable(${_ast2lua(ast.left)}) == ${_ast2lua(ast.right)}`
+        } else {
+          return `${_ast2lua(ast.left)} ${logic_map[ast.operator] || ast.operator} ${_ast2lua(ast.right)}`
+        }
+
+      }
+      case "UnaryExpression": {
+        if (ast.operator == 'typeof') {
+          return `type(${_ast2lua(ast.argument)})`
+        }
+        return `${logic_map[ast.operator] || ast.operator} ${_ast2lua(ast.argument)}`
+      }
+      case "ThisExpression": {
+        return `self`
+      }
+      case "BooleanLiteral": {
+        return `${ast.value}`
+      }
+      case "ObjectExpression": {
+        if (findNodeByType(ast.properties, "SpreadElement")) {
+          return `(function() local d = {}; ${ast.properties.map(e => {
+            if (e.type == 'SpreadElement') {
+              return `for k, v in pairs(${_ast2lua(e.argument)}) do d[k] = v end`
+            } else {
+              const key = _ast2lua(e.key)
+              return `d${e.computed || e.key.type == "StringLiteral" || luaKeyWords[key] ? `[${key}]` : `.${key}`} = ${_ast2lua(e.value)}`
+            }
+          }).join(';')} return d end)()`
+        } else {
+          return `{${ast.properties.map(_ast2lua).join(', ')}}`
+        }
+
+      }
+      case "ObjectProperty": {
+        const key = _ast2lua(ast.key)
+        return `${ast.computed || ast.key.type == "StringLiteral" || luaKeyWords[key] ? `[${key}]` : key} = ${_ast2lua(ast.value)}`
+      }
+      case "ArrayExpression": {
+        if (findNodeByType(ast.elements, "SpreadElement")) {
+          const iife = `(function() local a = {}; ${ast.elements.map(e => {
+            if (e.type == 'SpreadElement') {
+              return `for _, v in ipairs(${_ast2lua(e.argument)}) do a[#a + 1] = v end`
+            } else {
+              return `a[#a + 1] = ${_ast2lua(e)}`
+            }
+          }).join(';')} return a end)()`
+          return iife
+        } else {
+          return `{${ast.elements.map(_ast2lua).join(', ')}}`
+        }
+      }
+      case "ForOfStatement": {
+        const hasContinue = findNodeByType(ast, 'ContinueStatement')
+        const clabel = hasContinue ? ';::continue::' : ''
+        ast.left.ForOfStatement = true
+        if (ast.left.declarations[0]?.id.type == 'ArrayPattern') {
+          return `for __, __loop_var in ipairs(${_ast2lua(ast.right)}) do\
+           local ${_ast2lua(ast.left).slice(1, -1)} = __loop_var; ${_ast2lua(ast.body)} ${clabel} end`
+        } else {
+          return `for __, ${_ast2lua(ast.left)} in ipairs(${_ast2lua(ast.right)}) do\
+           ${_ast2lua(ast.body)} ${clabel} end`
+        }
+      }
+      case "ForInStatement": {
+        const hasContinue = findNodeByType(ast, 'ContinueStatement')
+        const clabel = hasContinue ? ';::continue::' : ''
+        ast.left.ForOfStatement = true
+        return `for ${_ast2lua(ast.left)}, __ in pairs(${_ast2lua(ast.right)}) do ${_ast2lua(ast.body)} ${clabel} end`
+      }
+      case "LogicalExpression": {
+        const s = `${_ast2lua(ast.left)} ${logic_map[ast.operator] || ast.operator} ${_ast2lua(ast.right)}`
+        if (ast.extra?.parenthesized) {
+          return `(${s})`
+        } else {
+          return `${s}`
+        }
+      }
+      case "FunctionDeclaration": {
+        const restNode = findNodeByType(ast.params, "RestElement")
+        const restToken = restNode ? `local ${restNode.argument.name} = {...};` : ''
+        const defaultTokens = getDefaultTokens(ast.params)
+        return `local function ${_ast2lua(ast.id)}(${ast.params?.map(_ast2lua).join(', ')}) ${defaultTokens} ${restToken} ${_ast2lua(ast.body)} end`
+      }
+      case "ReturnStatement": {
+        return ast.argument ? `return ${_ast2lua(ast.argument)}` : `return;`
+      }
+      case "ArrayPattern": {
+        return `[${ast.elements.map(_ast2lua).join(', ')}]`
+      }
+      case "ClassDeclaration": {
+        return `local ${_ast2lua(ast.id)} = class {${_ast2lua(ast.body)}}`
+      }
+      case "ClassBody": {
+        return `${ast.body.map(_ast2lua).join(',\n')}`
+      }
+      case "ClassProperty": {
+        return `${_ast2lua(ast.key)} = ${_ast2lua(ast.value)}`
+      }
+      case "ClassMethod": {
+        // ast.kind == 'constructor'
+        const restNode = findNodeByType(ast.params, "RestElement")
+        const restToken = restNode ? `local ${restNode.argument.name} = {...};` : ''
+        return `${_ast2lua(ast.key)} = function(${ast.params.length ? 'self, ' : 'self'}${ast.params.map(_ast2lua).join(', ')}) ${restToken} ${_ast2lua(ast.body)} end`
+      }
+      case "MemberExpression": {
+        const object = _ast2lua(ast.object)
+        const key = _ast2lua(ast.property)
+        if (key == 'length') {
+          return '#' + object
+        } else if (luaKeyWords[key]) {
+          return `${object}["${key}"]`
+        } else if (ast.property.type == "StringLiteral" || ast.property.type == "NumericLiteral") {
+          return `${object}[${key}]`
+        } else {
+          return `${object}${ast.CallExpression ? ':' : '.'}${key}`
+        }
+      }
+      case "ExpressionStatement": {
+        return `${_ast2lua(ast.expression)}`
+      }
+      case "AssignmentExpression": {
+        if (ast.right.type == "FunctionExpression"
+          && ast.left.type == "MemberExpression"
+          && ast.left.object.type == "MemberExpression"
+          && ast.left.object.property?.name == "prototype") {
+          // Class.prototype.foo = function() {}
+          const restNode = findNodeByType(ast.right.params, "RestElement")
+          const restToken = restNode ? `local ${restNode.argument.name} = {...};` : ''
+          const defaultTokens = getDefaultTokens(ast.right.params)
+          return `function ${_ast2lua(ast.left.object.object)}:${_ast2lua(ast.left.property)}(${(ast.right.params.map(_ast2lua).join(', '))})
+          ${defaultTokens} ${restToken} ${_ast2lua(ast.right.body)} end`
+        }
+        return `${_ast2lua(ast.left)} = ${_ast2lua(ast.right)}`
+      }
+      case "BreakStatement": {
+        return `break`
+      }
+      case "ContinueStatement": {
+        return `goto continue`
+      }
+      case "ThrowStatement": {
+        if (ast.argument.type == 'NewExpression') {
+          return `error(${ast.argument.arguments.map(_ast2lua).join(',')})`
+        } else {
+          return `error(${_ast2lua(ast.argument)})`
+        }
+      }
+      case "NewExpression": {
+        return `${_ast2lua(ast.callee)}:new(${ast.arguments.map(_ast2lua).join(', ')})`
+      }
+      case "FunctionExpression": {
+        const restNode = findNodeByType(ast.params, "RestElement")
+        const restToken = restNode ? `local ${restNode.argument.name} = {...};` : ''
+        const defaultTokens = getDefaultTokens(ast.params)
+        return `function(${ast.params.map(_ast2lua).join(', ')}) ${defaultTokens} ${restToken} ${_ast2lua(ast.body)} end`
+      }
+      case "TryStatement": {
+        return `local ok ${ast.handler.param ? ' ,' + _ast2lua(ast.handler.param) : ''} = pcall(function() ${_ast2lua(ast.block)} end);if not ok then ${_ast2lua(ast.handler.body)} end`
+      }
+      case "UpdateExpression": {
+        const n = _ast2lua(ast.argument)
+        const op = ast.operator == '++' ? '+' : '-'
+        if (options.selfOperatorToCallback) {
+          return `(function () ${n} = ${n} ${op} 1; return ${n} end)()`
+        } else {
+          return `${n} = ${n} ${op} 1`
+        }
+
+      }
+      case "WhileStatement": {
+        const hasContinue = findNodeByType(ast, 'ContinueStatement')
+        const clabel = hasContinue ? ';::continue::' : ''
+        return `while ${_ast2lua(ast.test)} do ${_ast2lua(ast.body)} ${clabel} end`
+      }
+      case "ArrowFunctionExpression": {
+        const restNode = findNodeByType(ast.params, "RestElement")
+        const restToken = restNode ? `local ${restNode.argument.name} = {...};` : ''
+        const defaultTokens = getDefaultTokens(ast.params)
+        return `function(${ast.params.map(_ast2lua).join(', ')}) ${defaultTokens} ${restToken} ${ast.body.type == 'BlockStatement' ? '' : 'return'} ${_ast2lua(ast.body)} end`
+      }
+      case "RestElement": {
+        return `...`
+      }
+      case "ConditionalExpression": {
+        return `(function()
+        if ${_ast2lua(ast.test)} then return ${_ast2lua(ast.consequent)};
+        else return ${_ast2lua(ast.alternate)}; end end)()`
+      }
+      case "RegExpLiteral": {
+        return `[=[${ast.pattern}]=]`
+      }
+      case "NullLiteral": {
+        return `nil`
+      }
+      case "TemplateLiteral": {
+        return `string.format([=[${ast.quasis.map(_ast2lua).join('%s')}]=], ${ast.expressions.map(_ast2lua).join(', ')})`
+      }
+      case "TemplateElement": {
+        return `${ast.value.cooked}`
+      }
+      case "ForStatement": {
+        const hasContinue = findNodeByType(ast, 'ContinueStatement')
+        const clabel = hasContinue ? ';::continue::' : ''
+        return `do
+        ${ast.init ? _ast2lua(ast.init) : ''}
+        while ${ast.test ? _ast2lua(ast.test) : '1'} do
+        ${_ast2lua(ast.body)} ${clabel} ${_ast2lua(ast.update)}
+        end
+        end`
+      }
+      case "AssignmentPattern": {
+        return `${_ast2lua(ast.left)}`
+      }
+      default:
+        p('unknow node', ast.type, ast)
+        return ""
+    }
+  }
+
+  return _ast2lua(ast)
+}
+
+function js2lua(s, options) {
+  let luacode = "";
+  luacode = ast2lua(js2ast(s), options);
+  p(luacode)
+  return formatText(luacode)
+  // try {
+  //   js = ast2lua(js2ast(s), options);
+  //   return formatText(js)
+  // } catch (error) {
+  //   console.error(error)
+  //   return `-- PARSE ERROR: ${error}\n\n${js}`;
+  // }
+}
 export {
   js2lua,
   js2ast

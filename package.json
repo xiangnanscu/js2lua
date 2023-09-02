@@ -6,9 +6,12 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
+    "commit": "git add . && git commit -am ",
+    "push": "yarn commit",
+    "postpush": "while true; do git push origin master && { echo 'Git push succeeded'; break; } || echo 'Git push failed, retrying in 1 seconds'; sleep 1; done",
+    "pull": "while true; do git pull origin master && { echo 'Git pull succeeded'; break; } || echo 'Git pull failed, retrying in 1 seconds'; sleep 1; done",
     "prerelease": "npm --no-git-tag-version version minor",
     "release": "push_option=release npm run push",
-    "push": "git add . && git commit -am \"${msg:-push}\" && git push --push-option=${push_option:-nothing}",
     "replace": "find .  -type d \\( -name .git -o -name node_modules \\) -prune -o  -type f  -exec  sed -i s/validator/field/g {} \\;",
     "test": "node test.mjs"
   },
@@ -19,9 +22,11 @@
     "bootstrap": "^5.1.3",
     "file-saver": "^2.0.5",
     "highlight.js": "^11.5.1",
+    "lua-fmt": "^2.6.0",
     "luaparse": "^0.3.1",
     "prettier": "^2.8.8",
     "sass": "^1.52.1",
+    "source-map-support": "^0.5.21",
     "vue": "^3.2.25"
   },
   "devDependencies": {

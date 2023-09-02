@@ -2,13 +2,134 @@
 import { ref, computed, watch } from "vue";
 import { js2lua, js2ast } from "./js2lua.mjs";
 import fs from "file-saver";
-import printLua from "@prettier/plugin-lua/src/printer.js";
 
 const parseOptions = {};
-const luacodeRef = ref(null);
-const showjsAst = ref(false);
+const showjsAst = ref(true);
+const ts = "`1.${2}.3.${bar}`";
 const jscode = ref(`\
-const message = "Hello, World!";
+let xx = undefined
+res.end()
+print(path[0])
+const FULL_PATH_REGEXP = /^https?:\\/\\/.*?\\//
+function f1(e={}) {
+  return e
+}
+for (let i = 0; i <= pattern.length; i++) {}
+const s = ${ts}
+const { version, host, ...rest } = d
+let g2 = foo ? 1 : 2
+const func1 = (e, ...args)=>[e, ...args]
+function func2(e, ...args) {
+  return [e, ...args]
+}
+a.map(e=>{return e.name})
+a.map(e=>e.name)
+print(a.length)
+print(a && b || c)
+print(a && (b || c))
+const g = [1, ...x2, 'haha', ...x3, true]
+print(a.foo, a.true, a['true'])
+let x11,x2,x3;
+const [r1, r2] = x3, {a:zz1,true:zz2} ={a:1, true:2}, c1 = 3
+const constraints = {
+  'foo': 'baz',
+  foo: 'bar',
+  ...route.opts.constraints,
+  [httpMethodStrategy.name]: route.method
+}
+while (1) {
+  print('a')
+}
+let [x1, y1] = [1,2,3]
+let k = 'a'
+let d1 = {[k]: 'a', k:'b'}
+let [a1, b1] = t
+if (path[idx] === ')') {
+  parentheses--
+} else if (path['idx'] !== '(') {
+  parentheses++
+} else if (n > 1) {
+  n++
+}
+print(i)
+try {
+  const res =foo()
+} catch {
+  console.log(error)
+}
+try {
+  const res =foo()
+} catch (error) {
+  console.log(error)
+}
+const fx = function (a) {}
+Router.prototype.foo = function (x=[], ...y) {
+  return [x, ...y]
+}
+const f2 = typeof 2
+const f = new C({x:1, y:2})
+const {k1, k2: v} = e
+if (false) {
+  throw new Error('!')
+}
+if (false) {
+  throw new CustomError({message:"haha"})
+}
+if (false) {
+  throw '!!'
+}
+if (false) {
+  throw {K:2}
+}
+class C {
+  a = 1;
+  constructor(c, b) {
+    this.c = c
+    this.b = b
+  }
+  static boo() {
+    print(1)
+    return this.a
+  }
+  foo(...rest) {
+    return [this.a, ...rest]
+  }
+}
+for (const e of arr) {
+  print(e)
+  break
+}
+for (const [a, b] of arr) {
+  print(a, b)
+  continue
+}
+for (const key in object) {
+  print(key)
+}
+function foo(x,b) {
+  const a = 1
+  return a
+}
+print(a && (b||c))
+const a = 1 , b= 'x', c = true, d = {k:1,[k]:2}, e = [1]
+if (a) {
+  f()
+}
+if (a) {
+  f()
+} else if (b) {
+  f()
+} else if (c) {
+  f()
+} else {
+  f()
+}
+if (!(this instanceof Router)) {
+  foo()
+} else {
+  bar()
+}
+
 `);
 // jscode.value = `function foo.bar(self)
 
@@ -16,26 +137,7 @@ const message = "Hello, World!";
 // local Child = class({
 //   echo = function(self) end
 // }, Parent)`
-const optionNamesDict = {
-  printToConsoleLog: true,
-  tryUseOfLoop: true,
-  indexMinusOne: true,
-  returnNilToThrow: true,
-  errorToThrow: true,
-  tostring: true,
-  dict: true,
-  list: true,
-  unpack: true,
-  tonumber: true,
-  class: true,
-  selfToThis: true,
-  clsToThis: true,
-  typeToTypeof: true,
-  stringFormat: true,
-  tableConcat: true,
-  tableInsert: true,
-  camelStyle: false,
-};
+const optionNamesDict = {};
 const optionNames = Object.keys(optionNamesDict);
 const selectNames = ref(
   Object.entries(optionNamesDict)
@@ -43,7 +145,15 @@ const selectNames = ref(
     .map(([k, v]) => k)
 );
 const selectOptions = computed(() => Object.fromEntries(selectNames.value.map((e) => [e, true])));
-const luacode = computed(() => js2lua(jscode.value, selectOptions.value));
+const luacode = computed(() => {
+  return js2lua(jscode.value, selectOptions.value);
+  // try {
+  //   return js2lua(jscode.value, selectOptions.value);
+  // } catch (error) {
+  //   console.error(error);
+  //   return "--" + error.message;
+  // }
+});
 
 const jsast = computed(() => js2ast(jscode.value, selectOptions.value));
 function copylua() {

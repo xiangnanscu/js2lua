@@ -32,3 +32,5 @@ p1.say('hello')
 p1.say.call(p2)
 p1.echoArgsLength('a', 'b', 'c')
 p1.echoArgsLength.apply(p2, [1, 2])
+const a = () => 1
+console.log(a?.())

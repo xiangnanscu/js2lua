@@ -11,7 +11,12 @@ const optionNamesDict = {
   consoleLogToPrint: true,
 };
 const ts = "`1.${2}.3.${bar}`";
-const jscode = ref(`\
+const jscode = ref(`obj.func?.(1, ...args)`);
+const jscode2 = ref(`\
+obj.func?.(1, ...args)
+let m = a?.b?.c
+let n = a?.[b]?.['c']?.d?.e
+print(a[1], a['b'], a[true], a.true, a.true2)
 class Position {
   static insCount = 0
   start = true

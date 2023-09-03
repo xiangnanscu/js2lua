@@ -1,3 +1,4 @@
+/* eslint-disable no-constant-condition */
 /* eslint-disable no-duplicate-case */
 
 import { parse } from "@babel/parser"
@@ -92,6 +93,32 @@ function ast2lua(ast, opts) {
       return `${key}`
     }
   }
+
+  const getCallExpressionToken = (ast) => {
+    if (ast.callee.type == "MemberExpression") {
+      // foo.bar()
+      const funcObject = _ast2lua(ast.callee.object)
+      const method = _ast2lua(ast.callee.property)
+      if (method == 'call') {
+        return [funcObject, joinAst(ast.arguments)]
+      } else if (method == 'apply') {
+        const [a, b] = ast.arguments
+        if (b) {
+          return [funcObject, `${_ast2lua(a)}, unpack(${_ast2lua(b)})`]
+        } else {
+          return [funcObject, _ast2lua(a)]
+        }
+      } else if (isKeyWords(method)) {
+        return [`${funcObject}["${method}"]`, `${funcObject}${ast.arguments.length > 0 ? ',' : ''}${joinAst(ast.arguments)}`]
+      } else if (method == 'log' && funcObject == 'console') {
+        return ['print', joinAst(ast.arguments)]
+      } else {
+        return [`${funcObject}:${method}`, joinAst(ast.arguments)]
+      }
+    } else {
+      return [_ast2lua(ast.callee), joinAst(ast.arguments)]
+    }
+  }
   const joinAst = (params, e = ',') => params.map(_ast2lua).join(e)
   function _ast2lua(ast) {
     switch (ast.type) {
@@ -158,27 +185,8 @@ function ast2lua(ast, opts) {
         return `${ast.body.map(_ast2lua).join(';')}`
       }
       case "CallExpression": {
-        if (ast.callee.type == "MemberExpression") {
-          const key = _ast2lua(ast.callee.property)
-          const callee = _ast2lua(ast.callee.object)
-          if (key == 'call') {
-            return `${callee}(${joinAst(ast.arguments)})`
-          } else if (key == 'apply') {
-            const [a, b] = ast.arguments
-            if (b) {
-              return `${callee}(${_ast2lua(a)}, unpack(${_ast2lua(b)}))`
-            } else {
-              return `${callee}(${_ast2lua(a)})`
-            }
-          } else if (isKeyWords(key)) {
-            return `${callee}["${key}"](${callee}${ast.arguments.length > 0 ? ',' : ''}${joinAst(ast.arguments)})`
-          } else if (key == 'log' && callee == 'console') {
-            return `print(${joinAst(ast.arguments)})`
-          } else {
-            return `${callee}:${key}(${joinAst(ast.arguments)})`
-          }
-        }
-        return `${_ast2lua(ast.callee)}(${joinAst(ast.arguments)})`
+        const [callee, args] = getCallExpressionToken(ast)
+        return `${callee}(${args})`
       }
       case "ExpressionStatement": {
         return `${_ast2lua(ast.expression)}`
@@ -411,6 +419,22 @@ ${classMethods}`
         return `${getSafePropery(ast.key)} = function(${firstParam}${joinAst(ast.params)})
          ${funcPrefixToken} ${_ast2lua(ast.body)} end`
       }
+      case "OptionalCallExpression": {
+        const [callee, args] = getCallExpressionToken(ast)
+        let originFuncName = _ast2lua(ast.callee)
+        if (originFuncName[0] == '#') {
+          originFuncName = originFuncName.slice(1) + '.length'
+        }
+        return `(function()
+          if ${originFuncName} == nil then
+            return nil
+          elseif type(${originFuncName}) ~= 'function' then
+            error('${originFuncName} is not a function')
+          else
+            return ${callee}(${args})
+          end
+        end)()`
+      }
       case "MemberExpression": {
         const object = _ast2lua(ast.object)
         const key = _ast2lua(ast.property)
@@ -418,11 +442,57 @@ ${classMethods}`
           return '#' + object
         } else if (isKeyWords(key)) {
           return `${object}["${key}"]`
-        } else if (ast.property.type == "StringLiteral" || ast.property.type == "NumericLiteral") {
+        } else if (ast.computed) {
           return `${object}[${key}]`
         } else {
           return `${object}.${key}`
         }
+      }
+      case "OptionalMemberExpression": {
+        const flatAsts = []
+        let _ast = ast
+        while (true) {
+          const { type, object } = _ast
+          if (type == 'OptionalMemberExpression') {
+            flatAsts.push(_ast)
+          } else if (type == 'MemberExpression') {
+            flatAsts.push(_ast)
+          } else {
+            flatAsts.push(_ast)
+            break
+          }
+          _ast = object
+        }
+        let firstTestDone = false
+        let lastKey = ""
+        const conditions = []
+        p({ flatAsts })
+        for (let i = flatAsts.length - 1; i > -1; i--) {
+          const _ast = flatAsts[i];
+          if (lastKey) {
+            if (flatAsts[i].computed) {
+              lastKey = `${lastKey}[${_ast2lua(_ast.property)}]`
+            } else {
+              lastKey = `${lastKey}.${_ast2lua(_ast.property)}`
+            }
+
+          } else {
+            lastKey = _ast2lua(_ast)
+          }
+          if (i == 0) {
+            conditions.push(`else return ${lastKey} end`)
+          } else if (flatAsts[i - 1].optional) {
+            if (!firstTestDone) {
+              firstTestDone = true
+              conditions.push(`if ${lastKey} == nil then return nil`)
+            } else {
+              conditions.push(`elseif ${lastKey} == nil then return nil`)
+            }
+          }
+        }
+        return `(function()
+        ${conditions.join('\n')}
+      end)()`
       }
       case "ExpressionStatement": {
         return `${_ast2lua(ast.expression)}`

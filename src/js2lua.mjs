@@ -77,7 +77,7 @@ function getRestToken(params) {
   return restToken
 }
 function ast2lua(ast, opts) {
-  p(ast)
+  p(ast.program.body)
   const getDefaultTokens = (params) => params.filter(p => p.type == 'AssignmentPattern')
     .map(p => `if ${_ast2lua(p.left)} == nil then ${_ast2lua(p.left)} = ${_ast2lua(p.right)} end`).join(';')
   const getFunctionSnippet = (params) => {
@@ -219,7 +219,7 @@ function ast2lua(ast, opts) {
       case 'NumericLiteral':
         return `${ast.value}`
       case "StringLiteral": {
-        return `"${ast.value.replaceAll('\\', '\\\\').replaceAll('"', '\\"')}"`
+        return ast.extra?.raw
       }
       case "IfStatement": {
         return `if ${_ast2lua(ast.test)} then ${_ast2lua(ast.consequent)} ${ast.alternate ? ` else ${_ast2lua(ast.alternate)}` : ''} end`
@@ -273,6 +273,8 @@ function ast2lua(ast, opts) {
         const arg = _ast2lua(ast.argument)
         if (ast.operator == 'typeof') {
           return `type(${arg})`
+        } else if (ast.operator == 'delete') {
+          return `${arg} = nil`
         } else if (ast.operator == '~') {
           return `bit.bnot(${arg})`
         }

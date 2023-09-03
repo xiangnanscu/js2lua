@@ -13,12 +13,13 @@ const optionNamesDict = {
 const ts = "`1.${2}.3.${bar}`";
 const jscode1 = ref(`a ??= 'hello' `);
 const jscode = ref(`\
+let h1 = h2 = 1
+delete foo.bar
 a ?? 'hello';
 let options = {}
 options.duration ??= 100;
 let m = a?.b;
 let n = a?.[b]?.['c']?.end?.e;
-
 a.b?.c?.();
 obj.func?.(1, ...args);
 print(a[1], a['b'], a[true], a.true, a.true2)

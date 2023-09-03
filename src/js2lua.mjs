@@ -85,12 +85,12 @@ function ast2lua(ast, opts) {
     const defaultTokens = getDefaultTokens(params)
     return `${defaultTokens} ${restToken}`
   }
-  const getSafePropery = (key) => {
+  const getSafePropery = (key, asIndex) => {
     key = _ast2lua(key)
     if (isKeyWords(key)) {
       return `["${key}"]`
     } else {
-      return `${key}`
+      return asIndex ? `.${key}` : key
     }
   }
   const getCallExpressionToken = (ast) => {
@@ -142,9 +142,9 @@ function ast2lua(ast, opts) {
         if (flatAsts[i].computed) {
           chainKey = `${chainKey}[${_ast2lua(_ast.property)}]`
         } else {
-          chainKey = `${chainKey}.${_ast2lua(_ast.property)}`
+          const safeKey = getSafePropery(_ast.property, true)
+          chainKey = `${chainKey}${safeKey}`
         }
-
       } else {
         chainKey = _ast2lua(_ast)
       }
@@ -336,7 +336,21 @@ function ast2lua(ast, opts) {
         return `for ${_ast2lua(ast.left)}, __ in pairs(${_ast2lua(ast.right)}) do ${_ast2lua(ast.body)} ${clabel} end`
       }
       case "LogicalExpression": {
-        const s = `${_ast2lua(ast.left)} ${logicMap[ast.operator] || ast.operator} ${_ast2lua(ast.right)}`
+        const op = logicMap[ast.operator] || ast.operator
+        const left = _ast2lua(ast.left)
+        const right = _ast2lua(ast.right)
+        let s
+        if (op == '??') {
+          s = `(function()
+            if ${left} == nil then
+              return ${right}
+            else
+              return ${left}
+            end
+          end)()`
+        } else {
+          s = `${left} ${op} ${right}`
+        }
         if (ast.extra?.parenthesized) {
           return `(${s})`
         } else {
@@ -486,7 +500,7 @@ ${classMethods}`
             return ${callee}(${args})
           end
         end)()`
-        p(token)
+        // p(token)
         return token
       }
       case "MemberExpression": {
@@ -543,8 +557,17 @@ ${classMethods}`
           return `${left} = bit.bxor(${left}, ${right})`
         } else if (op == '**=') {
           return `${left} = math.pow(${left}, ${right})`
+        } else if (op == '??=') {
+          return `${left} = (function()
+          if ${left} == nil then
+            return ${right}
+          else
+            return ${left}
+          end
+        end)()`
+        } else {
+          return `${_ast2lua(ast.left)} ${op} ${_ast2lua(ast.right)}`
         }
-        return `${_ast2lua(ast.left)} ${op} ${_ast2lua(ast.right)}`
       }
       case "BreakStatement": {
         return `break`

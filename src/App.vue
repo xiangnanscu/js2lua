@@ -7,38 +7,45 @@ const showjsAst = ref(false);
 const optionNamesDict = {
   useClassCall: false,
   tryTranslateClass: true,
-  selfOperatorToCallback: true,
+  selfOperatorToCallback: false,
+  consoleLogToPrint: true,
 };
 const ts = "`1.${2}.3.${bar}`";
 const jscode = ref(`\
-a += 1
-a -= 1
-a >> 2
-2 << a
-2 & a
-2 | a
-2 ^ a
-2 ** a
-~a
 class Position {
   static insCount = 0
   start = true
   end = false;
-  constructor(x=1, y=2, ...args) {
+  constructor(name, x = 1, y = 2, ...args) {
+    Position.insCount++
+    this.name = name
     this.x = x
     this.y = y
     this.args = args
   }
-  static echoX() {
-    console.log(this.x)
+  static echoInsCount() {
+    console.log(this.insCount)
   }
-  echoY() {
-    console.log(this.y)
+  echoPosition() {
+    console.log(this.name, this.x, this.y)
   }
-  true(s='haha') {
-    console.log(\`\${s}, test lua keyword: \${this.args.length}\`)
+  echoArgsLength(...arr) {
+    console.log('args length:', this.name, this.args.length, arr.length)
+  }
+  say(s = 'haha') {
+    console.log(\`\${this.name} say: \${s}, \${this.args[1]}\`)
   }
 }
+const p1 = new Position('p1', 1, 2, 3, 4)
+Position.echoInsCount()
+const p2 = new Position('p2', 10, 20, 30, 40)
+Position.echoInsCount()
+p1.echoPosition()
+p2.echoPosition()
+p1.say('hello')
+p1.say.call(p2)
+p1.echoArgsLength('a', 'b', 'c')
+p1.echoArgsLength.apply(p2, [1, 2])
 function Echo(x=1, y=2, ...args) {
   this.x = x
   this.y = y
@@ -173,7 +180,24 @@ if (!(this instanceof Router)) {
 } else {
   bar()
 }
-
+a += 1
+a -= 1
+a *= 1
+a /= 1
+a %= 1
+a &&= b
+a ||= b
+a >> 2
+2 << a
+a & 2
+a &= 2
+a | 2
+a |= 2
+a ^ 2
+a ^= 2
+a ** 2
+a **= 2
+~a
 `);
 
 const optionNames = Object.keys(optionNamesDict);

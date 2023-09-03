@@ -158,7 +158,26 @@ function ast2lua(ast, opts) {
         return `${ast.body.map(_ast2lua).join(';')}`
       }
       case "CallExpression": {
-        ast.callee.CallExpression = true
+        if (ast.callee.type == "MemberExpression") {
+          const key = _ast2lua(ast.callee.property)
+          const callee = _ast2lua(ast.callee.object)
+          if (key == 'call') {
+            return `${callee}(${joinAst(ast.arguments)})`
+          } else if (key == 'apply') {
+            const [a, b] = ast.arguments
+            if (b) {
+              return `${callee}(${_ast2lua(a)}, unpack(${_ast2lua(b)}))`
+            } else {
+              return `${callee}(${_ast2lua(a)})`
+            }
+          } else if (isKeyWords(key)) {
+            return `${callee}["${key}"](${callee}${ast.arguments.length > 0 ? ',' : ''}${joinAst(ast.arguments)})`
+          } else if (key == 'log' && callee == 'console') {
+            return `print(${joinAst(ast.arguments)})`
+          } else {
+            return `${callee}:${key}(${joinAst(ast.arguments)})`
+          }
+        }
         return `${_ast2lua(ast.callee)}(${joinAst(ast.arguments)})`
       }
       case "ExpressionStatement": {
@@ -402,7 +421,7 @@ ${classMethods}`
         } else if (ast.property.type == "StringLiteral" || ast.property.type == "NumericLiteral") {
           return `${object}[${key}]`
         } else {
-          return `${object}${ast.CallExpression ? ':' : '.'}${key}`
+          return `${object}.${key}`
         }
       }
       case "ExpressionStatement": {
@@ -425,6 +444,24 @@ ${classMethods}`
           return `${left} = ${left} + ${right}`
         } else if (op == '-=') {
           return `${left} = ${left} - ${right}`
+        } else if (op == '*=') {
+          return `${left} = ${left} * ${right}`
+        } else if (op == '/=') {
+          return `${left} = ${left} / ${right}`
+        } else if (op == '%=') {
+          return `${left} = ${left} % ${right}`
+        } else if (op == '&&=') {
+          return `${left} = ${left} and ${right}`
+        } else if (op == '||=') {
+          return `${left} = ${left} or ${right}`
+        } else if (op == '&=') {
+          return `${left} = bit.band(${left}, ${right})`
+        } else if (op == '|=') {
+          return `${left} = bit.bor(${left}, ${right})`
+        } else if (op == '^=') {
+          return `${left} = bit.bxor(${left}, ${right})`
+        } else if (op == '**=') {
+          return `${left} = math.pow(${left}, ${right})`
         }
         return `${_ast2lua(ast.left)} ${op} ${_ast2lua(ast.right)}`
       }
@@ -442,7 +479,7 @@ ${classMethods}`
         }
       }
       case "NewExpression": {
-        return `${_ast2lua(ast.callee)}:new(${joinAst(ast.arguments)})`
+        return `${_ast2lua(ast.callee)}(${joinAst(ast.arguments)})`
       }
       case "FunctionExpression": {
         const funcPrefixToken = getFunctionSnippet(ast.params)
@@ -494,14 +531,16 @@ ${classMethods}`
         const hasContinue = findNode(ast, 'ContinueStatement')
         const clabel = hasContinue ? ';::continue::' : ''
         return `do
-        ${ast.init ? _ast2lua(ast.init) : ''}
-        while ${ast.test ? _ast2lua(ast.test) : '1'} do
-        ${_ast2lua(ast.body)} ${clabel} ${_ast2lua(ast.update)}
-        end
-        end`
+  ${ast.init ? _ast2lua(ast.init) : ''}
+  while ${ast.test ? _ast2lua(ast.test) : '1'} do
+  ${_ast2lua(ast.body)} ${clabel} ${_ast2lua(ast.update)}
+  end
+end`
       }
       case "AssignmentPattern": {
         return `${_ast2lua(ast.left)}`
+      } case "SpreadElement": {
+        return `unpack(${_ast2lua(ast.argument)})`
       }
       default:
         p('unknow node', ast.type, ast)

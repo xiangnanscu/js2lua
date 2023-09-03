@@ -11,9 +11,9 @@ const optionNamesDict = {
   consoleLogToPrint: true,
 };
 const ts = "`1.${2}.3.${bar}`";
-const jscode1 = ref(`a ??= 'hello' `);
+const jscode1 = ref(`let h1 = h2 = h3 = 1`);
 const jscode = ref(`\
-let h1 = h2 = 1
+let h1 = h2 = h3 = 1
 delete foo.bar
 a ?? 'hello';
 let options = {}

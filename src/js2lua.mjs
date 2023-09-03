@@ -195,6 +195,8 @@ function ast2lua(ast, opts) {
               }
             }).join(';')
             assignment = `${varibles.join(', ')};do local __tmp = ${_ast2lua(d.init)}; ${assignments} end`
+          } else if (d.type == 'VariableDeclarator') {
+            assignment = _ast2lua(d)
           } else {
             assignment = `${_ast2lua(d.id)} = ${_ast2lua(d.init)}`
           }
@@ -206,6 +208,10 @@ function ast2lua(ast, opts) {
       case "VariableDeclarator":
         if (ast.id.type == "ObjectPattern") {
           return `local c = ${_ast2lua(ast.init)}`
+        } else if (ast.init.type == "AssignmentExpression") {
+          return `${_ast2lua(ast.init)};
+           local ${_ast2lua(ast.id)} = ${_ast2lua(ast.init.left)}
+          `
         }
         return `local ${_ast2lua(ast.id)} = ${_ast2lua(ast.init)}`
       case "Identifier": {
@@ -533,6 +539,13 @@ ${classMethods}`
           const funcPrefixToken = getFunctionSnippet(ast.right.params)
           return `function ${_ast2lua(ast.left.object.object)}:${_ast2lua(ast.left.property)}(${(joinAst(ast.right.params))})
           ${funcPrefixToken} ${_ast2lua(ast.right.body)} end`
+        } else if (ast.right.type == "AssignmentExpression") {
+          const op = ast.operator
+          const left = _ast2lua(ast.left)
+          const right = _ast2lua(ast.right)
+          return `${right};
+          local ${left} = ${_ast2lua(ast.right.left)}
+          `
         }
         const op = ast.operator
         const left = _ast2lua(ast.left)
@@ -660,7 +673,7 @@ end`
 function js2lua(s, opts) {
   let luacode = "";
   luacode = ast2lua(js2ast(s), opts);
-  // p(luacode)
+  p(luacode)
   return formatText(luacode)
   // try {
   //   js = ast2lua(js2ast(s), opts);

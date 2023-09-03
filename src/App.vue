@@ -3,11 +3,46 @@ import { ref, computed, watch } from "vue";
 import { js2lua, js2ast } from "./js2lua.mjs";
 import fs from "file-saver";
 
-const parseOptions = {};
 const showjsAst = ref(true);
+const optionNamesDict = {
+  useClassCall: false,
+  tryTranslateClass: true,
+  selfOperatorToCallback: true,
+};
 const ts = "`1.${2}.3.${bar}`";
 const jscode = ref(`\
-let xx = undefined
+class Position {
+  static insCount = 0
+  start = true
+  end = false;
+  constructor(x=1, y=2, ...args) {
+    this.x = x
+    this.y = y
+    this.args = args
+  }
+  static echoX() {
+    console.log(this.x)
+  }
+  echoY() {
+    console.log(this.y)
+  }
+  true(s='haha') {
+    console.log(\`\${s}, test lua keyword: \${this.args.length}\`)
+  }
+}
+function Echo(x=1, y=2, ...args) {
+  this.x = x
+  this.y = y
+  this.args = args
+}
+Echo.prototype.echoX = function() {
+  console.log(this.x)
+}
+Echo.prototype.echoY = function() {
+  console.log(this.y)
+}
+let xx =
+undefined
 res.end()
 print(path[0])
 const FULL_PATH_REGEXP = /^https?:\\/\\/.*?\\//
@@ -131,13 +166,7 @@ if (!(this instanceof Router)) {
 }
 
 `);
-// jscode.value = `function foo.bar(self)
 
-// end
-// local Child = class({
-//   echo = function(self) end
-// }, Parent)`
-const optionNamesDict = {};
 const optionNames = Object.keys(optionNamesDict);
 const selectNames = ref(
   Object.entries(optionNamesDict)

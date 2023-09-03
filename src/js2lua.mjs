@@ -244,26 +244,27 @@ function ast2lua(ast, opts) {
         }
       }
       case "FunctionDeclaration": {
-        const funcName = _ast2lua(ast.id)
+        const className = _ast2lua(ast.id)
         const funcPrefixToken = getFunctionSnippet(ast.params)
         const funcBody = _ast2lua(ast.body)
         const paramsToken = joinAst(ast.params)
         const metaParamsToken = ast.params.length > 0 ? ', ' + paramsToken : paramsToken
-        if (opts.tryTranslateClass && funcName.match(/^[A-Z]/) && findNode(ast.body, "ThisExpression")) {
+        if (opts.tryTranslateClass && className.match(/^[A-Z]/) && findNode(ast.body, "ThisExpression")) {
           return `\
-local ${funcName} = setmetatable({}, {
+local ${className} = setmetatable({}, {
   __call = function(t${metaParamsToken})
     local self = t:new();
     self:constructor(${paramsToken});
     return self;
   end})
-function ${funcName}.new(cls) return setmetatable({}, cls) end
-function ${funcName}:constructor(${paramsToken})
+${className}.__index = ${className}
+function ${className}.new(cls) return setmetatable({}, cls) end
+function ${className}:constructor(${paramsToken})
   ${funcPrefixToken}
   ${funcBody}
 end`
         } else {
-          return `local function ${funcName}(${paramsToken}) ${funcPrefixToken} ${funcBody} end`
+          return `local function ${className}(${paramsToken}) ${funcPrefixToken} ${funcBody} end`
         }
 
       }
@@ -277,11 +278,11 @@ end`
         if (opts.useClassCall) {
           return `local ${_ast2lua(ast.id)} = class {${_ast2lua(ast.body)}}`
         } else {
-          const funcName = _ast2lua(ast.id)
+          const className = _ast2lua(ast.id)
           const classMethods = ast.body.body.filter(e => e.type === 'ClassMethod' && e.kind !== 'constructor').map(b => {
             const key = _ast2lua(b.key)
             const funcPrefixToken = getFunctionSnippet(b.params)
-            const safeDeclare = isKeyWords(key) ? `${funcName}["${key}"] = function` : `function ${funcName}:${key}`
+            const safeDeclare = isKeyWords(key) ? `${className}["${key}"] = function` : `function ${className}:${key}`
             const firstParam = isKeyWords(key) ? b.params.length > 0 ? 'self,' : 'self' : ''
             return `${safeDeclare}(${firstParam}${joinAst(b.params)})
             ${funcPrefixToken}
@@ -291,9 +292,9 @@ end`
           const ClassProperties = ast.body.body.filter(e => e.type === 'ClassProperty' && e.static).map(b => {
             const key = _ast2lua(b.key)
             if (isKeyWords(key)) {
-              return `${funcName}["${key}"] = ${_ast2lua(b.value)}`
+              return `${className}["${key}"] = ${_ast2lua(b.value)}`
             } else {
-              return `${funcName}.${key} = ${_ast2lua(b.value)}`
+              return `${className}.${key} = ${_ast2lua(b.value)}`
             }
           }).join(';')
           const InstanceProperties = ast.body.body.filter(e => e.type === 'ClassProperty' && !e.static).map(b => {
@@ -307,35 +308,37 @@ end`
           const constructorNode = findNode(ast.body, e => e.kind == 'constructor')
           if (!constructorNode) {
             return `\
-            local ${funcName} = setmetatable({}, {
-              __call = function(t)
-                local self = t:new();
-                self:constructor();
-                return self;
-              end})
-            ${ClassProperties}
-            function ${funcName}.new(cls) return setmetatable({${InstanceProperties}}, cls) end
-            function ${funcName}:constructor() end
-            ${classMethods}`
+local ${className} = setmetatable({}, {
+  __call = function(t)
+    local self = t:new();
+    self:constructor();
+    return self;
+  end})
+${className}.__index = ${className}
+${ClassProperties}
+function ${className}.new(cls) return setmetatable({${InstanceProperties}}, cls) end
+function ${className}:constructor() end
+${classMethods}`
           } else {
             const funcPrefixToken = getFunctionSnippet(constructorNode.params)
             const funcBody = _ast2lua(constructorNode.body)
             const paramsToken = joinAst(constructorNode.params)
             const metaParamsToken = constructorNode.params.length > 0 ? ', ' + paramsToken : paramsToken
             return `\
-            local ${funcName} = setmetatable({}, {
-              __call = function(t${metaParamsToken})
-                local self = t:new();
-                self:constructor(${paramsToken});
-                return self;
-              end})
-            ${ClassProperties}
-            function ${funcName}.new(cls) return setmetatable({${InstanceProperties}}, cls) end
-            function ${funcName}:constructor(${paramsToken})
-              ${funcPrefixToken}
-              ${funcBody}
-            end
-            ${classMethods}`
+local ${className} = setmetatable({}, {
+  __call = function(t${metaParamsToken})
+    local self = t:new();
+    self:constructor(${paramsToken});
+    return self;
+  end})
+${className}.__index = ${className}
+${ClassProperties}
+function ${className}.new(cls) return setmetatable({${InstanceProperties}}, cls) end
+function ${className}:constructor(${paramsToken})
+  ${funcPrefixToken}
+  ${funcBody}
+end
+${classMethods}`
           }
         }
       }

@@ -11,8 +11,9 @@ const optionNamesDict = {
   consoleLogToPrint: true,
 };
 const ts = "`1.${2}.3.${bar}`";
-const jscode = ref(`obj.func?.(1, ...args)`);
+const jscode = ref(`a.b?.c?.();`);
 const jscode2 = ref(`\
+a.b?.c?.();
 obj.func?.(1, ...args)
 let m = a?.b?.c
 let n = a?.[b]?.['c']?.d?.e

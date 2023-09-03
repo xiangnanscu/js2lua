@@ -19,7 +19,7 @@ const luaKeyWords = {
 }
 const isKeyWords = (k) => Object.prototype.hasOwnProperty.call(luaKeyWords, k)
 
-const logic_map = {
+const logicMap = {
   '!': 'not',
   '&&': "and",
   '||': 'or',
@@ -164,19 +164,49 @@ function ast2lua(ast, opts) {
       case "ExpressionStatement": {
         return `${_ast2lua(ast.expression)}`
       }
+      // arshift = <function 1>,
+      // band = <function 2>,
+      // bnot = <function 3>,
+      // bor = <function 4>,
+      // bswap = <function 5>,
+      // bxor = <function 6>,
+      // lshift = <function 7>,
+      // rol = <function 8>,
+      // ror = <function 9>,
+      // rshift = <function 10>,
+      // tobit = <function 11>,
+      // tohex = <function 12>
       case "BinaryExpression": {
+        const op = logicMap[ast.operator] || ast.operator
+        const left = _ast2lua(ast.left)
+        const right = _ast2lua(ast.right)
         if (ast.operator == 'instanceof') {
-          return `getmetatable(${_ast2lua(ast.left)}) == ${_ast2lua(ast.right)}`
+          return `getmetatable(${left}) == ${right}`
+        } else if (ast.operator == ">>") {
+          return `bit.rshift(${left}, ${right})`
+        } else if (ast.operator == "<<") {
+          return `bit.lshift(${left}, ${right})`
+        } else if (ast.operator == "&") {
+          return `bit.band(${left}, ${right})`
+        } else if (ast.operator == "|") {
+          return `bit.bor(${left}, ${right})`
+        } else if (ast.operator == "^") {
+          return `bit.bxor(${left}, ${right})`
+        } else if (ast.operator == "**") {
+          return `math.pow(${left}, ${right})`
         } else {
-          return `${_ast2lua(ast.left)} ${logic_map[ast.operator] || ast.operator} ${_ast2lua(ast.right)}`
+          return `${left} ${op} ${_ast2lua(ast.right)}`
         }
-
       }
       case "UnaryExpression": {
+        const op = logicMap[ast.operator] || ast.operator
+        const arg = _ast2lua(ast.argument)
         if (ast.operator == 'typeof') {
-          return `type(${_ast2lua(ast.argument)})`
+          return `type(${arg})`
+        } else if (ast.operator == '~') {
+          return `bit.bnot(${arg})`
         }
-        return `${logic_map[ast.operator] || ast.operator} ${_ast2lua(ast.argument)}`
+        return `${op} ${arg}`
       }
       case "ThisExpression": {
         return ast.toCls ? 'cls' : `self`
@@ -236,7 +266,7 @@ function ast2lua(ast, opts) {
         return `for ${_ast2lua(ast.left)}, __ in pairs(${_ast2lua(ast.right)}) do ${_ast2lua(ast.body)} ${clabel} end`
       }
       case "LogicalExpression": {
-        const s = `${_ast2lua(ast.left)} ${logic_map[ast.operator] || ast.operator} ${_ast2lua(ast.right)}`
+        const s = `${_ast2lua(ast.left)} ${logicMap[ast.operator] || ast.operator} ${_ast2lua(ast.right)}`
         if (ast.extra?.parenthesized) {
           return `(${s})`
         } else {
@@ -388,7 +418,15 @@ ${classMethods}`
           return `function ${_ast2lua(ast.left.object.object)}:${_ast2lua(ast.left.property)}(${(joinAst(ast.right.params))})
           ${funcPrefixToken} ${_ast2lua(ast.right.body)} end`
         }
-        return `${_ast2lua(ast.left)} = ${_ast2lua(ast.right)}`
+        const op = ast.operator
+        const left = _ast2lua(ast.left)
+        const right = _ast2lua(ast.right)
+        if (op == '+=') {
+          return `${left} = ${left} + ${right}`
+        } else if (op == '-=') {
+          return `${left} = ${left} - ${right}`
+        }
+        return `${_ast2lua(ast.left)} ${op} ${_ast2lua(ast.right)}`
       }
       case "BreakStatement": {
         return `break`

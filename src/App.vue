@@ -11,6 +11,15 @@ const optionNamesDict = {
 };
 const ts = "`1.${2}.3.${bar}`";
 const jscode = ref(`\
+a += 1
+a -= 1
+a >> 2
+2 << a
+2 & a
+2 | a
+2 ^ a
+2 ** a
+~a
 class Position {
   static insCount = 0
   start = true

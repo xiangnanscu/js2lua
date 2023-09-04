@@ -19,7 +19,7 @@ const luaKeyWords = {
   return: "_return", then: "_then", true: "_true", until: "_until", while: "_while"
 }
 const isKeyWords = (k) => Object.prototype.hasOwnProperty.call(luaKeyWords, k)
-
+const renameIdentifier = (k) => k
 const logicMap = {
   '!': 'not',
   '&&': "and",
@@ -398,8 +398,10 @@ end`
         return `[${joinAst(ast.elements)}]`
       }
       case "ClassDeclaration": {
+        const superClassToken = ast.superClass ? `{${_ast2lua(ast.superClass)}}` : ``
         if (opts.useClassCall) {
-          return `local ${_ast2lua(ast.id)} = class {${_ast2lua(ast.body)}}`
+          return `local ${_ast2lua(ast.id)} = class ${superClassToken} {
+            ${_ast2lua(ast.body)}}`
         } else {
           const className = _ast2lua(ast.id)
           const classMethods = ast.body.body.filter(e => e.type === 'ClassMethod' && e.kind !== 'constructor').map(b => {
@@ -429,16 +431,17 @@ end`
             }
           }).join(',')
           const constructorNode = findNode(ast.body, e => e.kind == 'constructor')
+          const superClass__indexToken = ast.superClass ? `__index = ${_ast2lua(ast.superClass)},` : ''
           if (!constructorNode) {
             return `\
 local ${className} = setmetatable({}, {
+  ${superClass__indexToken}
   __call = function(t)
     local self = t:new();
     self:constructor();
     return self;
   end})
-${className}.__index = ${className}
-${ClassProperties}
+${className}.__index = ${className};${ClassProperties};
 function ${className}.new(cls) return setmetatable({${InstanceProperties}}, cls) end
 function ${className}:constructor() end
 ${classMethods}`
@@ -606,7 +609,19 @@ ${classMethods}`
         return `function(${joinAst(ast.params)}) ${funcPrefixToken} ${_ast2lua(ast.body)} end`
       }
       case "TryStatement": {
-        return `local ok ${ast.handler.param ? ' ,' + _ast2lua(ast.handler.param) : ''} = pcall(function() ${_ast2lua(ast.block)} end);if not ok then ${_ast2lua(ast.handler.body)} end`
+        let catchError;
+        if (ast.handler.param) {
+          catchError = _ast2lua(ast.handler.param)
+        } else {
+          catchError = ''
+        }
+        if (opts.shadowCatchError && catchError === 'error') {
+          catchError = '_err'
+          renameIdentifier(ast, 'error', '_err')
+        }
+        return `local ok ${ast.handler.param ? ' ,' + _ast2lua(ast.handler.param) : ''} =
+        pcall(function() ${_ast2lua(ast.block)} end);
+        if not ok then ${_ast2lua(ast.handler.body)} end`
       }
       case "UpdateExpression": {
         const n = _ast2lua(ast.argument)
@@ -661,6 +676,9 @@ end`
         return `${_ast2lua(ast.left)}`
       } case "SpreadElement": {
         return `unpack(${_ast2lua(ast.argument)})`
+      }
+      case "Super": {
+        return `super`
       }
       default:
         p('unknow node', ast.type, ast)

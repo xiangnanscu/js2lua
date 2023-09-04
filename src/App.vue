@@ -5,10 +5,11 @@ import fs from "file-saver";
 
 const showjsAst = ref(false);
 const optionNamesDict = {
-  useClassCall: false,
   tryTranslateClass: true,
-  selfOperatorToCallback: false,
+  selfOperatorToCallback: true,
   consoleLogToPrint: true,
+  shadowCatchError: true,
+  useClassCall: false,
 };
 const ts = "`1.${2}.3.${bar}`";
 const jscode = ref(`let a = 1, b ='\\n', h1 = h2 = h3 = 1, {j1, k1} = s

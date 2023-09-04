@@ -717,7 +717,10 @@ end`
     }
   }
 
-  return `${headSnippets.join(';')}${_ast2lua(ast)}${tailSnippets.join(';')}`
+  return `
+  ${headSnippets.join(';')}
+  ${_ast2lua(ast)}
+  ${tailSnippets.join(';')}`
 }
 
 function js2lua(s, opts) {

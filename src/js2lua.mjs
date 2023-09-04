@@ -175,7 +175,21 @@ function ast2lua(ast, opts) {
         if (!ast.init) {
           return `${_ast2lua(ast.id)}`
         } else if (ast.init.type == "AssignmentExpression") {
-          return `${_ast2lua(ast.id)} = ${_ast2lua(ast.init.left)}`
+          const res = [`${_ast2lua(ast.id)} = ${_ast2lua(ast.init.left)}`]
+          let _ast = ast.init
+          while (1) {
+            if (_ast.type == "AssignmentExpression") {
+              if (_ast.right.type == "AssignmentExpression") {
+                res.unshift(`${_ast2lua(_ast.left)} = ${_ast2lua(_ast.right.left)}`)
+              } else {
+                res.unshift(`${_ast2lua(_ast.left)} = ${_ast2lua(_ast.right)}`)
+              }
+            } else {
+              break
+            }
+            _ast = _ast.right
+          }
+          return res.join(';\nlocal ')
         } else if (ast.id.type == 'ArrayPattern') {
           return `${_ast2lua(ast.id).slice(1, -1)} = unpack(${_ast2lua(ast.init)})`
         } else if (ast.id.type == 'ObjectPattern') {

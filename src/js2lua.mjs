@@ -108,6 +108,8 @@ function getRestToken(params) {
 }
 function ast2lua(ast, opts) {
   p(ast.program.body)
+  const headSnippets = []
+  const tailSnippets = []
   const getDefaultTokens = (params) => params.filter(p => p.type == 'AssignmentPattern')
     .map(p => `if ${_ast2lua(p.left)} == nil then ${_ast2lua(p.left)} = ${_ast2lua(p.right)} end`).join(';')
   const getFunctionSnippet = (params) => {
@@ -571,51 +573,55 @@ ${classMethods}`
           && ast.left.object.property?.name == "prototype") {
           // Class.prototype.foo = function() {}
           const funcPrefixToken = getFunctionSnippet(ast.right.params)
-          return `function ${_ast2lua(ast.left.object.object)}:${_ast2lua(ast.left.property)}(${(joinAst(ast.right.params))})
-          ${funcPrefixToken} ${_ast2lua(ast.right.body)} end`
+          const funcName = `${_ast2lua(ast.left.object.object)}:${_ast2lua(ast.left.property)}`
+          return `function ${funcName}(${(joinAst(ast.right.params))})
+            ${funcPrefixToken} ${_ast2lua(ast.right.body)} end`
+        } else if (opts.moduleExportsToReturn && ast.left.type == "MemberExpression" && _ast2lua(ast.left) == 'module.exports') {
+          tailSnippets.push(`return ${_ast2lua(ast.right)}`)
+          return ``
         } else if (ast.right.type == "AssignmentExpression") {
-          const op = ast.operator
+          // chain assignment: a = b = 1
           const left = _ast2lua(ast.left)
           const right = _ast2lua(ast.right)
           return `${right};
-          local ${left} = ${_ast2lua(ast.right.left)}
-          `
-        }
-        const op = ast.operator
-        const left = _ast2lua(ast.left)
-        const right = _ast2lua(ast.right)
-        if (op == '+=') {
-          return `${left} = ${left} + ${right}`
-        } else if (op == '-=') {
-          return `${left} = ${left} - ${right}`
-        } else if (op == '*=') {
-          return `${left} = ${left} * ${right}`
-        } else if (op == '/=') {
-          return `${left} = ${left} / ${right}`
-        } else if (op == '%=') {
-          return `${left} = ${left} % ${right}`
-        } else if (op == '&&=') {
-          return `${left} = ${left} and ${right}`
-        } else if (op == '||=') {
-          return `${left} = ${left} or ${right}`
-        } else if (op == '&=') {
-          return `${left} = bit.band(${left}, ${right})`
-        } else if (op == '|=') {
-          return `${left} = bit.bor(${left}, ${right})`
-        } else if (op == '^=') {
-          return `${left} = bit.bxor(${left}, ${right})`
-        } else if (op == '**=') {
-          return `${left} = math.pow(${left}, ${right})`
-        } else if (op == '??=') {
-          return `${left} = (function()
-          if ${left} == nil then
-            return ${right}
-          else
-            return ${left}
-          end
-        end)()`
+          local ${left} = ${_ast2lua(ast.right.left)}`
         } else {
-          return `${_ast2lua(ast.left)} ${op} ${_ast2lua(ast.right)}`
+          const op = ast.operator
+          const left = _ast2lua(ast.left)
+          const right = _ast2lua(ast.right)
+          if (op == '+=') {
+            return `${left} = ${left} + ${right}`
+          } else if (op == '-=') {
+            return `${left} = ${left} - ${right}`
+          } else if (op == '*=') {
+            return `${left} = ${left} * ${right}`
+          } else if (op == '/=') {
+            return `${left} = ${left} / ${right}`
+          } else if (op == '%=') {
+            return `${left} = ${left} % ${right}`
+          } else if (op == '&&=') {
+            return `${left} = ${left} and ${right}`
+          } else if (op == '||=') {
+            return `${left} = ${left} or ${right}`
+          } else if (op == '&=') {
+            return `${left} = bit.band(${left}, ${right})`
+          } else if (op == '|=') {
+            return `${left} = bit.bor(${left}, ${right})`
+          } else if (op == '^=') {
+            return `${left} = bit.bxor(${left}, ${right})`
+          } else if (op == '**=') {
+            return `${left} = math.pow(${left}, ${right})`
+          } else if (op == '??=') {
+            return `${left} = (function()
+            if ${left} == nil then
+              return ${right}
+            else
+              return ${left}
+            end
+          end)()`
+          } else {
+            return `${_ast2lua(ast.left)} ${op} ${_ast2lua(ast.right)}`
+          }
         }
       }
       case "BreakStatement": {
@@ -711,7 +717,7 @@ end`
     }
   }
 
-  return _ast2lua(ast)
+  return `${headSnippets.join(';')}${_ast2lua(ast)}${tailSnippets.join(';')}`
 }
 
 function js2lua(s, opts) {

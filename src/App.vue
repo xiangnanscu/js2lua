@@ -5,6 +5,7 @@ import fs from "file-saver";
 
 const showjsAst = ref(false);
 const optionNamesDict = {
+  moduleExportsToReturn: true,
   index0To1: true,
   tryTranslateClass: true,
   selfOperatorToCallback: true,

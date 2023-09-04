@@ -8,14 +8,22 @@ const optionNamesDict = {
   tryTranslateClass: true,
   selfOperatorToCallback: true,
   consoleLogToPrint: true,
-  shadowCatchError: true,
+  renameCatchError: true,
   useClassCall: false,
 };
 const ts = "`1.${2}.3.${bar}`";
-const jscode = ref(`let a = 1, b ='\\n', h1 = h2 = h3 = 1, {j1, k1} = s
+const jscode = ref(`
+class Position {
+  static safeRename() {
+    console.log(cls, self.foo)
+  }
+  static safeRename2() {
+    console.log(self.foo)
+  }
+}
 `);
 const jscode1 = ref(`\
-let a = 1, b ='\\n', h1 = h2 = h3 = 1, {j1, k1} = s
+let s1 = 1, s2 ='\\n', h1 = h2 = h3 = 1, {j1, j2} = s
 delete foo.bar
 a ?? 'hello';
 let options = {}
@@ -121,11 +129,7 @@ try {
 } catch {
   console.log(error)
 }
-try {
-  const res =foo()
-} catch (error) {
-  console.log(error)
-}
+
 const fx = function (a) {}
 Router.prototype.foo = function (x=[], ...y) {
   return [x, ...y]

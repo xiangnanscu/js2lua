@@ -19,7 +19,6 @@ const luaKeyWords = {
   return: "_return", then: "_then", true: "_true", until: "_until", while: "_while"
 }
 const isKeyWords = (k) => Object.prototype.hasOwnProperty.call(luaKeyWords, k)
-const renameIdentifier = (k) => k
 const logicMap = {
   '!': 'not',
   '&&': "and",
@@ -29,50 +28,82 @@ const logicMap = {
   '!==': '~=',
   '!=': '~=',
 }
-
-function walkNode(node, callback) {
-  if (typeof node !== 'object') {
+const isNode = e => e && typeof e == 'object' && e.type
+function walkAst(ast, callback, depth) {
+  const nextDepth = depth === undefined ? undefined : depth - 1
+  const ok = depth > 0 || depth === undefined
+  if (Array.isArray(ast)) {
+    if (ok) {
+      for (const e of ast) {
+        walkAst(e, callback, nextDepth)
+      }
+    }
+  } else if (!isNode(ast)) {
     return
-  }
-  for (const [key, value] of Object.entries(node)) {
-    if (typeof value == 'object' && value && value.type) {
-      const stop = callback(value)
-      if (stop) {
-        return stop
-      }
-      walkNode(value, callback)
-    } else if (Array.isArray(value)) {
-      for (const e of value) {
-        const stop = callback(e)
-        if (stop) {
-          return stop
-        }
-        walkNode(e, callback)
+  } else {
+    const stop = callback(ast)
+    if (stop) {
+      return stop
+    }
+    if (ok) {
+      for (const e of Object.values(ast)) {
+        walkAst(e, callback, nextDepth)
       }
     }
   }
 }
-function thisToCls(ast) {
-  walkNode(ast, (node) => { if (node.type == 'ThisExpression') { node.toCls = true } })
+function renameIdentifier(ast, old, new1, depth) {
+  walkAst(ast, (e) => {
+    if (e.type == 'Identifier' && e.name == old) {
+      e.name = new1
+    }
+  }, depth)
 }
-function findNode(ast, type) {
-  let find;
-  const test = typeof type == 'function' ? (node) => {
-    if (type(node)) {
-      find = node
+function hasIdentifier(ast, name, depth) {
+  let find
+  walkAst(ast, (e) => {
+    if (e.type == 'Identifier' && e.name == name) {
+      console.log("???")
+      find = e
       return true
     }
-  } : (node) => {
-    if (node.type === type) {
-      find = node
-      return true
-    }
-  }
-  walkNode(ast, test)
+  }, depth)
   return find
 }
+function renameThisToCls(ast) {
+  walkAst(ast, (node) => {
+    if (node.type == 'ThisExpression') {
+      node.type = 'Identifier'
+      node.name = 'cls'
+    }
+  })
+}
+function findNode(ast, callback, depth) {
+  let find;
+  const test = (node) => {
+    if (callback(node)) {
+      find = node
+      return true
+    }
+  }
+  walkAst(ast, test, depth)
+  return find
+}
+function findNodes(ast, callback, depth) {
+  const find = [];
+  const test = (node) => {
+    if (callback(node)) {
+      find.push(node)
+    }
+  }
+  walkAst(ast, test, depth)
+  return find
+}
+function findNodeByType(ast, type, depth) {
+  return findNode(ast, (node) => node.type === type, depth)
+}
 function getRestToken(params) {
-  const restNode = findNode(params, "RestElement")
+  const restNode = findNodeByType(params, "RestElement")
   const restToken = restNode ? `local ${restNode.argument.name} = {...};` : ''
   return restToken
 }
@@ -216,12 +247,11 @@ function ast2lua(ast, opts) {
         }
       }
       case "Identifier": {
-        const id = ast.name || ast.identifierName
+        const id = ast.name
         if (id == 'undefined') {
           return 'nil'
         }
         return id
-        // return `${Object.prototype.hasOwnProperty.call(luaKeyWords, id) ? '_' + id : id}`
       }
       case 'NumericLiteral':
         return `${ast.value}`
@@ -288,13 +318,13 @@ function ast2lua(ast, opts) {
         return `${op} ${arg}`
       }
       case "ThisExpression": {
-        return ast.toCls ? 'cls' : `self`
+        return `self`
       }
       case "BooleanLiteral": {
         return `${ast.value}`
       }
       case "ObjectExpression": {
-        if (findNode(ast.properties, "SpreadElement")) {
+        if (findNodeByType(ast.properties, "SpreadElement")) {
           return `(function() local d = {}; ${ast.properties.map(e => {
             if (e.type == 'SpreadElement') {
               return `for k, v in pairs(${_ast2lua(e.argument)}) do d[k] = v end`
@@ -313,7 +343,7 @@ function ast2lua(ast, opts) {
         return `${ast.computed || ast.key.type == "StringLiteral" || isKeyWords(key) ? `[${key}]` : key} = ${_ast2lua(ast.value)}`
       }
       case "ArrayExpression": {
-        if (findNode(ast.elements, "SpreadElement")) {
+        if (findNodeByType(ast.elements, "SpreadElement")) {
           const iife = `(function() local a = {}; ${ast.elements.map(e => {
             if (e.type == 'SpreadElement') {
               return `for _, v in ipairs(${_ast2lua(e.argument)}) do a[#a + 1] = v end`
@@ -327,7 +357,7 @@ function ast2lua(ast, opts) {
         }
       }
       case "ForOfStatement": {
-        const hasContinue = findNode(ast, 'ContinueStatement')
+        const hasContinue = findNodeByType(ast, 'ContinueStatement')
         const clabel = hasContinue ? ';::continue::' : ''
         ast.left.ForOfStatement = true
         if (ast.left.declarations[0]?.id.type == 'ArrayPattern') {
@@ -339,7 +369,7 @@ function ast2lua(ast, opts) {
         }
       }
       case "ForInStatement": {
-        const hasContinue = findNode(ast, 'ContinueStatement')
+        const hasContinue = findNodeByType(ast, 'ContinueStatement')
         const clabel = hasContinue ? ';::continue::' : ''
         ast.left.ForOfStatement = true
         return `for ${_ast2lua(ast.left)}, __ in pairs(${_ast2lua(ast.right)}) do ${_ast2lua(ast.body)} ${clabel} end`
@@ -372,7 +402,7 @@ function ast2lua(ast, opts) {
         const funcBody = _ast2lua(ast.body)
         const paramsToken = joinAst(ast.params)
         const metaParamsToken = ast.params.length > 0 ? ', ' + paramsToken : paramsToken
-        if (opts.tryTranslateClass && className.match(/^[A-Z]/) && findNode(ast.body, "ThisExpression")) {
+        if (opts.tryTranslateClass && className.match(/^[A-Z]/) && findNodeByType(ast.body, "ThisExpression")) {
           return `\
 local ${className} = setmetatable({}, {
   __call = function(t${metaParamsToken})
@@ -475,17 +505,14 @@ ${classMethods}`
         return `${getSafePropery(ast.key)} = ${_ast2lua(ast.value)}`
       }
       case "ClassMethod": {
-        // ast.kind == 'constructor'
-        // ast.static
-        // const restNode = findNode(ast.params, "RestElement")
-        // const restToken = restNode ? `local ${restNode.argument.name} = {...};` : ''
         const funcPrefixToken = getFunctionSnippet(ast.params)
-        if (ast.static) {
-          thisToCls(ast.body)
+        ast.params.unshift({ type: 'ThisExpression' })
+        const canRename = ast.static && !hasIdentifier(ast.body, 'cls') && !hasIdentifier(ast.params, 'cls')
+        if (canRename) {
+          renameThisToCls(ast.body)
+          renameThisToCls(ast.params)
         }
-        const thisName = ast.static ? 'cls' : 'self'
-        const firstParam = ast.params.length ? `${thisName},` : thisName
-        return `${getSafePropery(ast.key)} = function(${firstParam}${joinAst(ast.params)})
+        return `${getSafePropery(ast.key)} = function(${joinAst(ast.params)})
          ${funcPrefixToken} ${_ast2lua(ast.body)} end`
       }
       case "OptionalCallExpression": {
@@ -609,15 +636,10 @@ ${classMethods}`
         return `function(${joinAst(ast.params)}) ${funcPrefixToken} ${_ast2lua(ast.body)} end`
       }
       case "TryStatement": {
-        let catchError;
-        if (ast.handler.param) {
-          catchError = _ast2lua(ast.handler.param)
-        } else {
-          catchError = ''
-        }
-        if (opts.shadowCatchError && catchError === 'error') {
-          catchError = '_err'
-          renameIdentifier(ast, 'error', '_err')
+        if (opts.renameCatchError && ast.handler.param && _ast2lua(ast.handler.param) === 'error') {
+          if (!hasIdentifier(ast.handler, '_err')) {
+            renameIdentifier(ast.handler, 'error', '_err')
+          }
         }
         return `local ok ${ast.handler.param ? ' ,' + _ast2lua(ast.handler.param) : ''} =
         pcall(function() ${_ast2lua(ast.block)} end);
@@ -634,7 +656,7 @@ ${classMethods}`
 
       }
       case "WhileStatement": {
-        const hasContinue = findNode(ast, 'ContinueStatement')
+        const hasContinue = findNodeByType(ast, 'ContinueStatement')
         const clabel = hasContinue ? ';::continue::' : ''
         return `while ${_ast2lua(ast.test)} do ${_ast2lua(ast.body)} ${clabel} end`
       }
@@ -663,7 +685,7 @@ ${classMethods}`
         return `${ast.value.cooked}`
       }
       case "ForStatement": {
-        const hasContinue = findNode(ast, 'ContinueStatement')
+        const hasContinue = findNodeByType(ast, 'ContinueStatement')
         const clabel = hasContinue ? ';::continue::' : ''
         return `do
   ${ast.init ? _ast2lua(ast.init) : ''}

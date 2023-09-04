@@ -168,52 +168,39 @@ function ast2lua(ast, opts) {
       case "File":
         return ast.program.body.map(_ast2lua).join(';\n')
       case "VariableDeclaration": {
-        const res = []
-        for (const d of ast.declarations) {
-          const declarePrefix = ast.ForOfStatement ? '' : 'local '
-          let assignment;
-          if (!d.init) {
-            assignment = `${_ast2lua(d.id)}`
-          } else if (d.id?.type == 'ArrayPattern') {
-            assignment = `${_ast2lua(d.id).slice(1, -1)} = unpack(${_ast2lua(d.init)})`
-          } else if (d.id?.type == 'ObjectPattern') {
-            const varibles = d.id.properties.map(p => p.type == 'RestElement' ? _ast2lua(p.argument) : `${_ast2lua(p.value)}`)
-            const assignments = d.id.properties.map(p => {
-              if (p.type == 'RestElement') {
-                const restArg = _ast2lua(p.argument)
-                const restCond = d.id.properties.slice(0, -1).map(p => `k ~= "${_ast2lua(p.key)}"`).join(' and ')
-                return `${restArg} = {};
-                for k, v in pairs(__tmp) do
-                if ${restCond} then
-                  ${restArg}[k] = v
-                end
-                end`
-              } else {
-                const key = _ast2lua(p.key)
-                const init = isKeyWords(key) ? `__tmp["${key}"]` : `__tmp.${key}`
-                return `${_ast2lua(p.value)} = ${init}`
-              }
-            }).join(';')
-            assignment = `${varibles.join(', ')};do local __tmp = ${_ast2lua(d.init)}; ${assignments} end`
-          } else if (d.type == 'VariableDeclarator') {
-            assignment = _ast2lua(d)
-          } else {
-            assignment = `${_ast2lua(d.id)} = ${_ast2lua(d.init)}`
-          }
-          res.push(`${declarePrefix}${assignment}`)
-        }
-        // p(res.join(';'))
-        return res.join(';')
+        const declarePrefix = ast.ForOfStatement ? '' : 'local '
+        return ast.declarations.map(_ast2lua).map(e => `${declarePrefix}${e}`).join(';\n')
       }
-      case "VariableDeclarator":
-        if (ast.id.type == "ObjectPattern") {
-          return `local c = ${_ast2lua(ast.init)}`
+      case "VariableDeclarator": {
+        if (!ast.init) {
+          return `${_ast2lua(ast.id)}`
         } else if (ast.init.type == "AssignmentExpression") {
-          return `${_ast2lua(ast.init)};
-           local ${_ast2lua(ast.id)} = ${_ast2lua(ast.init.left)}
-          `
+          return `${_ast2lua(ast.id)} = ${_ast2lua(ast.init.left)}`
+        } else if (ast.id.type == 'ArrayPattern') {
+          return `${_ast2lua(ast.id).slice(1, -1)} = unpack(${_ast2lua(ast.init)})`
+        } else if (ast.id.type == 'ObjectPattern') {
+          const varibles = ast.id.properties.map(p => p.type == 'RestElement' ? _ast2lua(p.argument) : `${_ast2lua(p.value)}`)
+          const assignments = ast.id.properties.map(p => {
+            if (p.type == 'RestElement') {
+              const restArg = _ast2lua(p.argument)
+              const restCond = ast.id.properties.slice(0, -1).map(p => `k ~= "${_ast2lua(p.key)}"`).join(' and ')
+              return `${restArg} = {};
+              for k, v in pairs(__tmp) do
+              if ${restCond} then
+                ${restArg}[k] = v
+              end
+              end`
+            } else {
+              const key = _ast2lua(p.key)
+              const init = isKeyWords(key) ? `__tmp["${key}"]` : `__tmp.${key}`
+              return `${_ast2lua(p.value)} = ${init}`
+            }
+          }).join(';')
+          return `${varibles.join(', ')};do local __tmp = ${_ast2lua(ast.init)}; ${assignments} end`
+        } else {
+          return `${_ast2lua(ast.id)} = ${_ast2lua(ast.init)}`
         }
-        return `local ${_ast2lua(ast.id)} = ${_ast2lua(ast.init)}`
+      }
       case "Identifier": {
         const id = ast.name || ast.identifierName
         if (id == 'undefined') {
@@ -330,10 +317,10 @@ function ast2lua(ast, opts) {
         const clabel = hasContinue ? ';::continue::' : ''
         ast.left.ForOfStatement = true
         if (ast.left.declarations[0]?.id.type == 'ArrayPattern') {
-          return `for __, __loop_var in ipairs(${_ast2lua(ast.right)}) do\
-           local ${_ast2lua(ast.left).slice(1, -1)} = __loop_var; ${_ast2lua(ast.body)} ${clabel} end`
+          return `for _, __vars in ipairs(${_ast2lua(ast.right)}) do
+           local ${_ast2lua(ast.left).slice(1, -1)} = unpack(__vars); ${_ast2lua(ast.body)} ${clabel} end`
         } else {
-          return `for __, ${_ast2lua(ast.left)} in ipairs(${_ast2lua(ast.right)}) do\
+          return `for _, ${_ast2lua(ast.left)} in ipairs(${_ast2lua(ast.right)}) do
            ${_ast2lua(ast.body)} ${clabel} end`
         }
       }

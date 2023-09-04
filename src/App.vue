@@ -11,8 +11,9 @@ const optionNamesDict = {
   consoleLogToPrint: true,
 };
 const ts = "`1.${2}.3.${bar}`";
-const jscode1 = ref(`let h1 = h2 = h3 = 1`);
-const jscode = ref(`\
+const jscode = ref(`let a = 1, b ='\\n', h1 = h2 = h3 = 1
+`);
+const jscode1 = ref(`\
 let h1 = h2 = h3 = 1
 delete foo.bar
 a ?? 'hello';

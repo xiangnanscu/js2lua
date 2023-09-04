@@ -5,6 +5,7 @@ import fs from "file-saver";
 
 const showjsAst = ref(false);
 const optionNamesDict = {
+  index0To1: true,
   tryTranslateClass: true,
   selfOperatorToCallback: true,
   consoleLogToPrint: true,
@@ -13,14 +14,7 @@ const optionNamesDict = {
 };
 const ts = "`1.${2}.3.${bar}`";
 const jscode = ref(`
-class Position {
-  static safeRename() {
-    console.log(cls, self.foo)
-  }
-  static safeRename2() {
-    console.log(self.foo)
-  }
-}
+module.exports = a[0]
 `);
 const jscode1 = ref(`\
 let s1 = 1, s2 ='\\n', h1 = h2 = h3 = 1, {j1, j2} = s

@@ -63,7 +63,6 @@ function hasIdentifier(ast, name, depth) {
   let find
   walkAst(ast, (e) => {
     if (e.type == 'Identifier' && e.name == name) {
-      console.log("???")
       find = e
       return true
     }
@@ -550,7 +549,11 @@ ${classMethods}`
         } else if (isKeyWords(key)) {
           return `${object}["${key}"]`
         } else if (ast.computed) {
-          return `${object}[${key}]`
+          if (opts.index0To1 && ast.property?.type == 'NumericLiteral' && ast.property.value === 0) {
+            return `${object}[1]`
+          } else {
+            return `${object}[${key}]`
+          }
         } else {
           return `${object}.${key}`
         }

@@ -15,7 +15,7 @@
     "release": "push_option=release npm run push",
     "rc": "yarn release",
     "replace": "find .  -type d \\( -name .git -o -name node_modules \\) -prune -o  -type f  -exec  sed -i s/validator/field/g {} \\;",
-    "test": "node test.js"
+    "test": "node test.mjs"
   },
   "dependencies": {
     "@babel/parser": "^7.22.14",

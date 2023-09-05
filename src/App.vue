@@ -2,6 +2,7 @@
 import { ref, computed, watch } from "vue";
 import { js2lua, js2ast } from "./js2lua.mjs";
 import fs from "file-saver";
+import classCode from "../test/class.mjs?raw";
 
 const showjsAst = ref(false);
 const optionNamesDict = {
@@ -23,11 +24,8 @@ const optionNamesDict = {
   disableClassCall: true,
 };
 const ts = "`1.${2}.3.${bar}`";
-const jscode1 = ref(`
-
-
-`);
-const jscode = ref(`\
+const jscode = ref(classCode);
+const jscode1 = ref(`\
 import aaa from "bar"
 function baz() {}
 const bar = 1
@@ -60,30 +58,7 @@ let n = a?.[b]?.['c']?.end?.e;
 a.b?.c?.();
 obj.func?.(1, ...args);
 print(a[1], a['b'], a[true], a.true, a.true2)
-class Position {
-  static insCount = 0
-  start = true
-  end = false;
-  constructor(name, x = 1, y = 2, ...args) {
-    Position.insCount++
-    this.name = name
-    this.x = x
-    this.y = y
-    this.args = args
-  }
-  static echoInsCount() {
-    console.log(this.insCount)
-  }
-  echoPosition() {
-    console.log(this.name, this.x, this.y)
-  }
-  echoArgsLength(...arr) {
-    console.log('args length:', this.name, this.args.length, arr.length)
-  }
-  say(s = 'haha') {
-    console.log(\`\${this.name} say: \${s}, \${this.args[1]}\`)
-  }
-}
+
 const p1 = new Position('p1', 1, 2, 3, 4)
 Position.echoInsCount()
 const p2 = new Position('p2', 10, 20, 30, 40)
@@ -105,8 +80,7 @@ Echo.prototype.echoX = function() {
 Echo.prototype.echoY = function() {
   console.log(this.y)
 }
-let xx =
-undefined
+let xx = undefined
 res.end()
 print(path[0])
 const FULL_PATH_REGEXP = /^https?:\\/\\/.*?\\//

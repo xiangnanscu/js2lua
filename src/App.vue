@@ -3,7 +3,9 @@ import { ref, computed, watch } from "vue";
 import { js2lua, js2ast } from "./js2lua.mjs";
 import fs from "file-saver";
 import classCode from "../test/class.mjs?raw";
+const assignmenCode = require("../test/assignment.mjs?raw")
 
+console.log({assignmenCode})
 const showjsAst = ref(false);
 const optionNamesDict = {
   importStatementHoisting: true,
@@ -24,7 +26,7 @@ const optionNamesDict = {
   disableClassCall: true,
 };
 const ts = "`1.${2}.3.${bar}`";
-const jscode = ref(classCode);
+const jscode = ref(assignmenCode);
 const jscode1 = ref(`\
 import aaa from "bar"
 function baz() {}

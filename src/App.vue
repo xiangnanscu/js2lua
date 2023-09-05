@@ -5,18 +5,20 @@ import fs from "file-saver";
 
 const showjsAst = ref(false);
 const optionNamesDict = {
+  transformToString: true,
+  transformString: true,
   transformJSONStringify: true,
   transformJSONParse: true,
   transformParseFloat: true,
   transformParseInt: true,
   transformNumber: true,
   transformIsArray: true,
+  transformConsoleLog: true,
   moduleExportsToReturn: true,
   index0To1: true,
   tryTranslateClass: true,
   selfOperatorToCallback: true,
-  consoleLogToPrint: true,
-  renameCatchError: true,
+  renameCatchErrorIfNeeded: true,
   disableClassCall: true,
 };
 const ts = "`1.${2}.3.${bar}`";
@@ -24,6 +26,8 @@ const jscode = ref(`
 
 `);
 const jscode1 = ref(`\
+String(1)
+a.b.toString()
 JSON.stringify({})
 JSON.parse('{}')
 Number('2')

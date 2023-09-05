@@ -186,8 +186,10 @@ function ast2lua(ast, opts) {
         }
       } else if (isKeyWords(method)) {
         return [`${funcObject}["${method}"]`, `${funcObject}${ast.arguments.length > 0 ? ',' : ''}${argumentsToken}`]
-      } else if (funcObject == 'console' && method == 'log') {
+      } else if (opts.transformConsoleLog && funcObject == 'console' && method == 'log') {
         return ['print', argumentsToken]
+      } else if (opts.transformToString && method == 'toString') {
+        return ['tostring', funcObject]
       } else if (opts.transformIsArray && funcObject == 'Array' && method == 'isArray') {
         needTableIsarray = true
         return ['isarray', argumentsToken]
@@ -207,6 +209,8 @@ function ast2lua(ast, opts) {
         return ['tonumber', argumentsToken]
       } else if (opts.transformNumber && calleeToken == 'Number') {
         return ['tonumber', argumentsToken]
+      } else if (opts.transformString && calleeToken == 'String') {
+        return ['tostring', argumentsToken]
       } else {
         return [calleeToken, argumentsToken]
       }
@@ -720,7 +724,7 @@ ${classMethods}`
         return `function(${joinAst(ast.params)}) ${funcPrefixToken} ${_ast2lua(ast.body)} end`
       }
       case "TryStatement": {
-        if (opts.renameCatchError && ast.handler.param && _ast2lua(ast.handler.param) === 'error') {
+        if (opts.renameCatchErrorIfNeeded && ast.handler.param && _ast2lua(ast.handler.param) === 'error') {
           if (!hasIdentifier(ast.handler, '_err')) {
             renameIdentifier(ast.handler, 'error', '_err')
           }

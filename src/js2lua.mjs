@@ -308,9 +308,6 @@ function ast2lua(ast, opts) {
         const [callee, args] = getCallExpressionToken(ast)
         return `${callee}(${args})`
       }
-      case "ExpressionStatement": {
-        return `${_ast2lua(ast.expression)}`
-      }
       // arshift = <function 1>,
       // band = <function 2>,
       // bnot = <function 3>,
@@ -400,8 +397,9 @@ function ast2lua(ast, opts) {
         const continueLabel = getContinueLabelIfNeeded(ast)
         ast.left.ForOfStatement = true
         if (ast.left.declarations[0]?.id.type == 'ArrayPattern') {
-          return `for _, __vars in ipairs(${_ast2lua(ast.right)}) do
-           local ${_ast2lua(ast.left).slice(1, -1)} = unpack(__vars); ${_ast2lua(ast.body)}
+          return `for _, _esPairs in ipairs(${_ast2lua(ast.right)}) do
+           local ${_ast2lua(ast.left).slice(1, -1)} = unpack(_esPairs);
+           ${_ast2lua(ast.body)}
            ${continueLabel} end`
         } else {
           return `for _, ${_ast2lua(ast.left)} in ipairs(${_ast2lua(ast.right)}) do

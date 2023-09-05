@@ -15,14 +15,16 @@ const optionNamesDict = {
 };
 const ts = "`1.${2}.3.${bar}`";
 const jscode = ref(`
-switch (key) {
-  case value:
-    print(key)
-    break;
 
+switch (c) {
+ case 'v2':
+ case 'v3':
+   print(2)
+   break
   default:
     break;
 }
+
 `);
 const jscode1 = ref(`\
 let s1 = 1, s2 ='\\n', h1 = h2 = h3 = 1, {j1, j2} = s

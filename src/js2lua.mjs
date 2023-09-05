@@ -1,5 +1,4 @@
 /* eslint-disable no-constant-condition */
-/* eslint-disable no-duplicate-case */
 
 import { parse } from "@babel/parser"
 import { formatText } from 'lua-fmt';
@@ -88,6 +87,9 @@ function findNode(ast, callback, depth) {
   walkAst(ast, test, depth)
   return find
 }
+function getContinueLabelIfNeeded(ast) {
+  return findNodeByType(ast, 'ContinueStatement') ? '::continue::' : ''
+}
 function findNodes(ast, callback, depth) {
   const find = [];
   const test = (node) => {
@@ -105,6 +107,42 @@ function getRestToken(params) {
   const restNode = findNodeByType(params, "RestElement")
   const restToken = restNode ? `local ${restNode.argument.name} = {...};` : ''
   return restToken
+}
+function mergeSwitchCases(ast) {
+  const groupCases = []
+  let caseUnit = []
+  for (const [i, c] of ast.cases.entries()) {
+    if (!c.test) {
+      // default case
+      groupCases.push([c])
+    } else {
+      caseUnit.push(c)
+      if (c.consequent.length > 0) {
+        groupCases.push(caseUnit)
+        caseUnit = []
+      }
+    }
+  }
+  if (caseUnit.length > 0) {
+    groupCases.push(caseUnit)
+  }
+  const cases = []
+  for (const unit of groupCases) {
+    if (unit.length === 1) {
+      cases.push(unit[0])
+    } else {
+      const lastCase = unit[unit.length - 1]
+      lastCase.testGroup = unit.map(e => e.test)
+      cases.push(lastCase)
+    }
+  }
+  // ensure default case is the last one
+  const defaultCaseIndex = cases.findIndex(c => !c.test)
+  if (defaultCaseIndex !== -1 && defaultCaseIndex !== cases.length - 1) {
+    ast.cases = [...cases.slice(0, defaultCaseIndex), ...cases.slice(defaultCaseIndex + 1), cases[defaultCaseIndex]]
+  } else {
+    ast.cases = cases
+  }
 }
 function ast2lua(ast, opts) {
   p(ast.program.body)
@@ -263,6 +301,7 @@ function ast2lua(ast, opts) {
         return `if ${_ast2lua(ast.test)} then ${_ast2lua(ast.consequent)} ${ast.alternate ? ` else ${_ast2lua(ast.alternate)}` : ''} end`
       }
       case "BlockStatement": {
+        // TODO: wrap in do ... end block?
         return `${ast.body.map(_ast2lua).join(';')}`
       }
       case "CallExpression": {
@@ -358,22 +397,24 @@ function ast2lua(ast, opts) {
         }
       }
       case "ForOfStatement": {
-        const hasContinue = findNodeByType(ast, 'ContinueStatement')
-        const clabel = hasContinue ? ';::continue::' : ''
+        const continueLabel = getContinueLabelIfNeeded(ast)
         ast.left.ForOfStatement = true
         if (ast.left.declarations[0]?.id.type == 'ArrayPattern') {
           return `for _, __vars in ipairs(${_ast2lua(ast.right)}) do
-           local ${_ast2lua(ast.left).slice(1, -1)} = unpack(__vars); ${_ast2lua(ast.body)} ${clabel} end`
+           local ${_ast2lua(ast.left).slice(1, -1)} = unpack(__vars); ${_ast2lua(ast.body)}
+           ${continueLabel} end`
         } else {
           return `for _, ${_ast2lua(ast.left)} in ipairs(${_ast2lua(ast.right)}) do
-           ${_ast2lua(ast.body)} ${clabel} end`
+           ${_ast2lua(ast.body)}
+           ${continueLabel} end`
         }
       }
       case "ForInStatement": {
-        const hasContinue = findNodeByType(ast, 'ContinueStatement')
-        const clabel = hasContinue ? ';::continue::' : ''
+        const continueLabel = getContinueLabelIfNeeded(ast)
         ast.left.ForOfStatement = true
-        return `for ${_ast2lua(ast.left)}, __ in pairs(${_ast2lua(ast.right)}) do ${_ast2lua(ast.body)} ${clabel} end`
+        return `for ${_ast2lua(ast.left)}, __ in pairs(${_ast2lua(ast.right)})
+        do ${_ast2lua(ast.body)}
+        ${continueLabel} end`
       }
       case "LogicalExpression": {
         const op = logicMap[ast.operator] || ast.operator
@@ -665,9 +706,10 @@ ${classMethods}`
 
       }
       case "WhileStatement": {
-        const hasContinue = findNodeByType(ast, 'ContinueStatement')
-        const clabel = hasContinue ? ';::continue::' : ''
-        return `while ${_ast2lua(ast.test)} do ${_ast2lua(ast.body)} ${clabel} end`
+        const continueLabel = getContinueLabelIfNeeded(ast)
+        return `while ${_ast2lua(ast.test)} do
+        ${_ast2lua(ast.body)}
+        ${continueLabel} end`
       }
       case "ArrowFunctionExpression": {
         const funcPrefixToken = getFunctionSnippet(ast.params)
@@ -694,12 +736,13 @@ ${classMethods}`
         return `${ast.value.cooked}`
       }
       case "ForStatement": {
-        const hasContinue = findNodeByType(ast, 'ContinueStatement')
-        const clabel = hasContinue ? ';::continue::' : ''
+        const continueLabel = getContinueLabelIfNeeded(ast)
         return `do
   ${ast.init ? _ast2lua(ast.init) : ''}
   while ${ast.test ? _ast2lua(ast.test) : '1'} do
-  ${_ast2lua(ast.body)} ${clabel} ${_ast2lua(ast.update)}
+  ${_ast2lua(ast.body)}
+  ${continueLabel}
+  ${_ast2lua(ast.update)}
   end
 end`
       }
@@ -710,6 +753,32 @@ end`
       }
       case "Super": {
         return `super`
+      }
+      case "SequenceExpression": {
+        return `{${ast.expressions.map(_ast2lua).join(';')}}`
+      }
+      case "SwitchStatement": {
+        mergeSwitchCases(ast)
+        const testExpToken = hasIdentifier(ast, 'testExp') ? `____testExp` : "testExp"
+        return `repeat
+        local ${testExpToken} = ${_ast2lua(ast.discriminant)}
+        ${ast.cases.map((c, i) => {
+          const bodyToken = joinAst(c.consequent, ';')
+          if (!c.test) {
+            return `else ${bodyToken}`
+          } else {
+            const conditionToken = c.testGroup
+              ? `${c.testGroup.map(t => `${testExpToken} == ${_ast2lua(t)}`).join(' or ')}`
+              : `${testExpToken} == ${_ast2lua(c.test)}`;
+            if (i === 0) {
+              return `if ${conditionToken} then ${bodyToken}`
+            } else {
+              return `elseif ${conditionToken} then ${bodyToken}`
+            }
+          }
+        }).join('\n')}
+        end
+      until (false)`
       }
       default:
         p('unknow node', ast.type, ast)

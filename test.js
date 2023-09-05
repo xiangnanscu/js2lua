@@ -1,2 +1,4 @@
-console.log(module)
-module.exports.foo = 1
+if (1) {
+  const a = 1
+}
+console.log(a)

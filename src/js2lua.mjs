@@ -8,7 +8,9 @@ function p() {
 }
 
 function js2ast(code) {
-  const ast = parse(code);
+  const ast = parse(code, {
+    sourceType: "module"
+  });
   return ast
 }
 const luaKeyWords = {
@@ -234,6 +236,9 @@ function ast2lua(ast, opts) {
   }
   const joinAst = (params, e = ',') => params.map(_ast2lua).join(e)
   function _ast2lua(ast) {
+    delete ast.start
+    delete ast.end;
+    delete ast.loc;
     switch (ast.type) {
       case "File":
         return ast.program.body.map(_ast2lua).join(';\n')
@@ -777,6 +782,21 @@ end`
         }).join('\n')}
         end
       until (false)`
+      }
+      case "ImportDeclaration": {
+        const locals = ast.specifiers.map(s => _ast2lua(s.local)).join(', ')
+        const assignments = ast.specifiers.map(s => {
+          if (s.type == "ImportDefaultSpecifier" || s.type == "ImportNamespaceSpecifier") {
+            return `${_ast2lua(s.local)} = _esModule`
+          } else {
+            return `${_ast2lua(s.local)} = _esModule.${_ast2lua(s.imported)}`
+          }
+        })
+        return `local ${locals};
+        do
+          local _esModule = require(${_ast2lua(ast.source)})
+          ${assignments.join(';')}
+        end`
       }
       default:
         p('unknow node', ast.type, ast)

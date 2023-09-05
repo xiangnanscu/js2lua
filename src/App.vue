@@ -15,15 +15,9 @@ const optionNamesDict = {
 };
 const ts = "`1.${2}.3.${bar}`";
 const jscode = ref(`
-
-switch (c) {
- case 'v2':
- case 'v3':
-   print(2)
-   break
-  default:
-    break;
-}
+import * as x from "bar"
+import a from "bar"
+import d, {a as c, b} from "bar"
 
 `);
 const jscode1 = ref(`\

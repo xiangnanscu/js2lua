@@ -502,7 +502,7 @@ end`
       }
       case "ClassDeclaration": {
         const superClassToken = ast.superClass ? `{${_ast2lua(ast.superClass)}}` : ``
-        if (opts.useClassCall) {
+        if (!opts.disableClassCall) {
           return `local ${_ast2lua(ast.id)} = class ${superClassToken} {
             ${_ast2lua(ast.body)}}`
         } else {

@@ -17,7 +17,7 @@ const optionNamesDict = {
   selfOperatorToCallback: true,
   consoleLogToPrint: true,
   renameCatchError: true,
-  useClassCall: false,
+  disableClassCall: true,
 };
 const ts = "`1.${2}.3.${bar}`";
 const jscode = ref(`

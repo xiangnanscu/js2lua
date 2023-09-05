@@ -147,7 +147,7 @@ function mergeSwitchCases(ast) {
   }
 }
 const BIT_SNIPPET = `local bit = require("bit")`
-const ISARRAY_SNIPPET = `local isarray = require "table.isarray"`
+const ISARRAY_SNIPPET = `local isarray = require("table.isarray")`
 function ast2lua(ast, opts) {
   p(ast.program.body)
   const headSnippets = []
@@ -170,12 +170,14 @@ function ast2lua(ast, opts) {
     }
   }
   const getCallExpressionToken = (ast) => {
+    const calleeToken = _ast2lua(ast.callee)
+    const argumentsToken = joinAst(ast.arguments)
     if (ast.callee.type == "MemberExpression") {
       // foo.bar()
       const funcObject = _ast2lua(ast.callee.object)
       const method = _ast2lua(ast.callee.property)
       if (method == 'call') {
-        return [funcObject, joinAst(ast.arguments)]
+        return [funcObject, argumentsToken]
       } else if (method == 'apply') {
         const [a, b] = ast.arguments
         if (b) {
@@ -184,17 +186,25 @@ function ast2lua(ast, opts) {
           return [funcObject, _ast2lua(a)]
         }
       } else if (isKeyWords(method)) {
-        return [`${funcObject}["${method}"]`, `${funcObject}${ast.arguments.length > 0 ? ',' : ''}${joinAst(ast.arguments)}`]
+        return [`${funcObject}["${method}"]`, `${funcObject}${ast.arguments.length > 0 ? ',' : ''}${argumentsToken}`]
       } else if (funcObject == 'console' && method == 'log') {
-        return ['print', joinAst(ast.arguments)]
+        return ['print', argumentsToken]
       } else if (opts.transformIsArray && funcObject == 'Array' && method == 'isArray') {
         needTableIsarray = true
-        return ['isarray', joinAst(ast.arguments)]
+        return ['isarray', argumentsToken]
       } else {
-        return [`${funcObject}:${method}`, joinAst(ast.arguments)]
+        return [`${funcObject}:${method}`, argumentsToken]
       }
     } else {
-      return [_ast2lua(ast.callee), joinAst(ast.arguments)]
+      if (opts.transformParseInt && calleeToken == 'parseInt') {
+        return ['math.floor', argumentsToken]
+      } else if (opts.transformParseFloat && calleeToken == 'parseFloat') {
+        return ['tonumber', argumentsToken]
+      } else if (opts.transformNumber && calleeToken == 'Number') {
+        return ['tonumber', argumentsToken]
+      } else {
+        return [calleeToken, argumentsToken]
+      }
     }
   }
   const getOptionalMemberExpression = (ast) => {

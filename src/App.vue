@@ -5,6 +5,9 @@ import fs from "file-saver";
 
 const showjsAst = ref(false);
 const optionNamesDict = {
+  transformParseFloat: true,
+  transformParseInt: true,
+  transformNumber: true,
   transformIsArray: true,
   moduleExportsToReturn: true,
   index0To1: true,
@@ -16,7 +19,9 @@ const optionNamesDict = {
 };
 const ts = "`1.${2}.3.${bar}`";
 const jscode = ref(`
-Array.isArray(1)
+Number('2')
+parseInt('2')
+parseFloat('1')
 `);
 const jscode1 = ref(`\
 import {e} from "bar"

@@ -1,6 +1,7 @@
 {
   "name": "@xiangnanscu/js2lua",
   "version": "0.9.0",
+  "type": "module",
   "main": "src/js2lua.mjs",
   "scripts": {
     "dev": "vite",
@@ -12,6 +13,7 @@
     "pull": "while true; do git pull origin master && { echo 'Git pull succeeded'; break; } || echo 'Git pull failed, retrying in 1 seconds'; sleep 1; done",
     "prerelease": "npm --no-git-tag-version version minor",
     "release": "push_option=release npm run push",
+    "rc": "yarn release",
     "replace": "find .  -type d \\( -name .git -o -name node_modules \\) -prune -o  -type f  -exec  sed -i s/validator/field/g {} \\;",
     "test": "node test.js"
   },

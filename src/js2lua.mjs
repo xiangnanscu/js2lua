@@ -3,6 +3,7 @@
 import { parse } from "@babel/parser"
 import { formatText } from 'lua-fmt';
 
+const ES_MODULE_NAME = 'EsExport'
 function p() {
   console.log.apply(this, arguments)
 }
@@ -153,6 +154,7 @@ function ast2lua(ast, opts) {
   let needCjsonMoudle = false
   let needBitModule = false
   let needTableIsarray = false
+  let needExportModule = false
   const getDefaultTokens = (params) => params.filter(p => p.type == 'AssignmentPattern')
     .map(p => `if ${_ast2lua(p.left)} == nil then ${_ast2lua(p.left)} = ${_ast2lua(p.right)} end`).join(';')
   const getFunctionSnippet = (params) => {
@@ -818,6 +820,26 @@ end`
         end
       until (false)`
       }
+      case "ExportNamedDeclaration": {
+        needExportModule = true
+        if (ast.specifiers.length === 0) {
+          if (ast.declaration?.type == "VariableDeclaration") {
+            // export const a = 1
+            const assignmentsToken = ast.declaration.declarations.map(_ast2lua).map(e => `local ${e}`).join(';\n')
+            const exportsTokens = ast.declaration.declarations.map(d => {
+              const exportKey = _ast2lua(d.id)
+              return `${ES_MODULE_NAME}.${exportKey} = ${exportKey}`
+            })
+            tailSnippets.push(...exportsTokens)
+            return `${assignmentsToken}
+          `
+          } else {
+            return ``
+          }
+        } else {
+          return ``
+        }
+      }
       case "ImportDeclaration": {
         if (ast.specifiers.length === 1) {
           const s = ast.specifiers[0]
@@ -849,6 +871,10 @@ end`
     }
   }
   const jsBody = _ast2lua(ast)
+  if (needExportModule) {
+    headSnippets.unshift(`local ${ES_MODULE_NAME} = {}`)
+    tailSnippets.push(`return ${ES_MODULE_NAME}`)
+  }
   if (needCjsonMoudle) {
     headSnippets.unshift(`local cjson = require("cjson")`)
   }

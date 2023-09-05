@@ -23,7 +23,8 @@ const optionNamesDict = {
 };
 const ts = "`1.${2}.3.${bar}`";
 const jscode = ref(`
-
+export const a = 1, b = 2;
+export function foo() {}
 `);
 const jscode1 = ref(`\
 String(1)

@@ -296,9 +296,6 @@ function ast2lua(ast, opts) {
   }
   const joinAst = (params, e = ',') => params.map(_ast2lua).join(e)
   function _ast2lua(ast) {
-    delete ast.start
-    delete ast.end;
-    delete ast.loc;
     switch (ast.type) {
       case "File":
         return ast.program.body.map(_ast2lua).join(';\n')

@@ -4,8 +4,9 @@ import { js2lua, js2ast } from "./js2lua.mjs";
 import fs from "file-saver";
 import classCode from "../test/class.mjs?raw";
 const assignmenCode = require("../test/assignment.mjs?raw")
-
-console.log({assignmenCode})
+const files = import.meta.glob('../test/*.mjs',{ as: 'raw', eager: true });
+const modules = Object.entries(files).map( ([path, require])=>[path, require])
+console.log({modules, assignmenCode})
 const showjsAst = ref(false);
 const optionNamesDict = {
   importStatementHoisting: true,

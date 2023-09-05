@@ -15,12 +15,15 @@ const optionNamesDict = {
 };
 const ts = "`1.${2}.3.${bar}`";
 const jscode = ref(`
-import * as x from "bar"
-import a from "bar"
-import d, {a as c, b} from "bar"
+print(1>>2)
 
 `);
 const jscode1 = ref(`\
+import {e} from "bar"
+import {e as g} from "bar"
+import * as x from "bar"
+import a from "bar"
+import d, {a as c, b} from "bar"
 let s1 = 1, s2 ='\\n', h1 = h2 = h3 = 1, {j1, j2} = s
 delete foo.bar
 a ?? 'hello';

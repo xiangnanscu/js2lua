@@ -146,10 +146,12 @@ function mergeSwitchCases(ast) {
     ast.cases = cases
   }
 }
+const BIT_SNIPPET = `local bit = require("bit")`
 function ast2lua(ast, opts) {
   p(ast.program.body)
   const headSnippets = []
   const tailSnippets = []
+  let needBitModule = false
   const getDefaultTokens = (params) => params.filter(p => p.type == 'AssignmentPattern')
     .map(p => `if ${_ast2lua(p.left)} == nil then ${_ast2lua(p.left)} = ${_ast2lua(p.right)} end`).join(';')
   const getFunctionSnippet = (params) => {
@@ -332,14 +334,19 @@ function ast2lua(ast, opts) {
         if (ast.operator == 'instanceof') {
           return `getmetatable(${left}) == ${right}`
         } else if (ast.operator == ">>") {
+          needBitModule = true
           return `bit.rshift(${left}, ${right})`
         } else if (ast.operator == "<<") {
+          needBitModule = true
           return `bit.lshift(${left}, ${right})`
         } else if (ast.operator == "&") {
+          needBitModule = true
           return `bit.band(${left}, ${right})`
         } else if (ast.operator == "|") {
+          needBitModule = true
           return `bit.bor(${left}, ${right})`
         } else if (ast.operator == "^") {
+          needBitModule = true
           return `bit.bxor(${left}, ${right})`
         } else if (ast.operator == "**") {
           return `math.pow(${left}, ${right})`
@@ -355,6 +362,7 @@ function ast2lua(ast, opts) {
         } else if (ast.operator == 'delete') {
           return `${arg} = nil`
         } else if (ast.operator == '~') {
+          needBitModule = true
           return `bit.bnot(${arg})`
         }
         return `${op} ${arg}`
@@ -648,10 +656,13 @@ ${classMethods}`
           } else if (op == '||=') {
             return `${left} = ${left} or ${right}`
           } else if (op == '&=') {
+            needBitModule = true
             return `${left} = bit.band(${left}, ${right})`
           } else if (op == '|=') {
+            needBitModule = true
             return `${left} = bit.bor(${left}, ${right})`
           } else if (op == '^=') {
+            needBitModule = true
             return `${left} = bit.bxor(${left}, ${right})`
           } else if (op == '**=') {
             return `${left} = math.pow(${left}, ${right})`
@@ -784,29 +795,42 @@ end`
       until (false)`
       }
       case "ImportDeclaration": {
-        const locals = ast.specifiers.map(s => _ast2lua(s.local)).join(', ')
-        const assignments = ast.specifiers.map(s => {
+        if (ast.specifiers.length === 1) {
+          const s = ast.specifiers[0]
+          const source = `require(${_ast2lua(ast.source)})`
           if (s.type == "ImportDefaultSpecifier" || s.type == "ImportNamespaceSpecifier") {
-            return `${_ast2lua(s.local)} = _esModule`
+            return `local ${_ast2lua(s.local)} = ${source}`
           } else {
-            return `${_ast2lua(s.local)} = _esModule.${_ast2lua(s.imported)}`
+            return `local ${_ast2lua(s.local)} = ${source}.${_ast2lua(s.imported)}`
           }
-        })
-        return `local ${locals};
-        do
-          local _esModule = require(${_ast2lua(ast.source)})
-          ${assignments.join(';')}
-        end`
+        } else {
+          const locals = ast.specifiers.map(s => _ast2lua(s.local)).join(', ')
+          const assignments = ast.specifiers.map(s => {
+            if (s.type == "ImportDefaultSpecifier" || s.type == "ImportNamespaceSpecifier") {
+              return `${_ast2lua(s.local)} = _esModule`
+            } else {
+              return `${_ast2lua(s.local)} = _esModule.${_ast2lua(s.imported)}`
+            }
+          })
+          return `local ${locals};
+          do
+            local _esModule = require(${_ast2lua(ast.source)})
+            ${assignments.join(';')}
+          end`
+        }
       }
       default:
         p('unknow node', ast.type, ast)
         return ""
     }
   }
-
+  const jsBody = _ast2lua(ast)
+  if (needBitModule) {
+    headSnippets.unshift(BIT_SNIPPET)
+  }
   return `
   ${headSnippets.join(';')}
-  ${_ast2lua(ast)}
+  ${jsBody}
   ${tailSnippets.join(';')}`
 }
 

@@ -1,6 +1,6 @@
 {
   "name": "@xiangnanscu/js2lua",
-  "version": "0.9.0",
+  "version": "0.10.0",
   "type": "module",
   "main": "src/js2lua.mjs",
   "scripts": {

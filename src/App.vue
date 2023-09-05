@@ -5,6 +5,7 @@ import fs from "file-saver";
 
 const showjsAst = ref(false);
 const optionNamesDict = {
+  importStatementHoisting: true,
   transformToString: true,
   transformString: true,
   transformJSONStringify: true,
@@ -22,11 +23,21 @@ const optionNamesDict = {
   disableClassCall: true,
 };
 const ts = "`1.${2}.3.${bar}`";
-const jscode = ref(`
-export const a = 1, b = 2;
-export function foo() {}
+const jscode1 = ref(`
+
+
 `);
-const jscode1 = ref(`\
+const jscode = ref(`\
+import aaa from "bar"
+function baz() {}
+const bar = 1
+module.exports.xxx = {}
+module.exports['yyy'] = {}
+export default {baz}
+export {bar}
+export {baz as zab}
+export const a11 = 1, b11 = 2;
+export function foo11() {}
 String(1)
 a.b.toString()
 JSON.stringify({})
@@ -35,11 +46,10 @@ Number('2')
 parseInt('2')
 parseFloat('1')
 Array.isArray(1)
-import {e} from "bar"
-import {e as g} from "bar"
+import {e11} from "bar"
+import {e as g11} from "bar"
 import * as x from "bar"
-import a from "bar"
-import d, {a as c, b} from "bar"
+import d11, {a as c11, b22} from "bar"
 let s1 = 1, s2 ='\\n', h1 = h2 = h3 = 1, {j1, j2} = s
 delete foo.bar
 a ?? 'hello';

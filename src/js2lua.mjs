@@ -151,6 +151,9 @@ function ast2lua(ast, opts) {
   p(ast.program.body)
   const headSnippets = []
   const tailSnippets = []
+  const importSnippets = []
+  let moduleExportInitToken = ''
+  let moduleReturnToken = ''
   let needCjsonMoudle = false
   let needBitModule = false
   let needTableIsarray = false
@@ -168,6 +171,35 @@ function ast2lua(ast, opts) {
       return `["${key}"]`
     } else {
       return asIndex ? `.${key}` : key
+    }
+  }
+  const getImportDeclarationToken = (ast) => {
+    if (ast.specifiers.length === 1) {
+      const s = ast.specifiers[0]
+      const source = `require(${_ast2lua(ast.source)})`
+      if (s.type == "ImportDefaultSpecifier") {
+        return `local ${_ast2lua(s.local)} = ${source}.default`
+      } else if (s.type == "ImportNamespaceSpecifier") {
+        return `local ${_ast2lua(s.local)} = ${source}`
+      } else {
+        return `local ${_ast2lua(s.local)} = ${source}.${_ast2lua(s.imported)}`
+      }
+    } else {
+      const locals = ast.specifiers.map(s => _ast2lua(s.local)).join(', ')
+      const assignments = ast.specifiers.map(s => {
+        if (s.type == "ImportDefaultSpecifier") {
+          return `${_ast2lua(s.local)} = _esModule.default`
+        } else if (s.type == "ImportNamespaceSpecifier") {
+          return `${_ast2lua(s.local)} = _esModule`
+        } else {
+          return `${_ast2lua(s.local)} = _esModule.${_ast2lua(s.imported)}`
+        }
+      })
+      return `local ${locals};
+      do
+        local _esModule = require(${_ast2lua(ast.source)})
+        ${assignments.join(';')}
+      end`
     }
   }
   const getCallExpressionToken = (ast) => {
@@ -654,9 +686,20 @@ ${classMethods}`
           const funcName = `${_ast2lua(ast.left.object.object)}:${_ast2lua(ast.left.property)}`
           return `function ${funcName}(${(joinAst(ast.right.params))})
             ${funcPrefixToken} ${_ast2lua(ast.right.body)} end`
-        } else if (opts.moduleExportsToReturn && ast.left.type == "MemberExpression" && _ast2lua(ast.left) == 'module.exports') {
-          tailSnippets.push(`return ${_ast2lua(ast.right)}`)
+        }
+        const leftToken = _ast2lua(ast.left)
+        if (opts.moduleExportsToReturn && ast.left.type == "MemberExpression" &&
+          (leftToken == 'module.exports' || leftToken.startsWith('module.exports.') || leftToken.startsWith('module.exports['))) {
+          if (leftToken == 'module.exports') {
+            // module.exports = xxx
+            moduleReturnToken = `return ${_ast2lua(ast.right)}`
+          } else {
+            needExportModule = true
+            tailSnippets.push(`${ES_MODULE_NAME}${leftToken.slice('module.exports'.length)} = ${_ast2lua(ast.right)}`)
+            return ``
+          }
           return ``
+
         } else if (ast.right.type == "AssignmentExpression") {
           // chain assignment: a = b = 1
           const left = _ast2lua(ast.left)
@@ -820,10 +863,15 @@ end`
         end
       until (false)`
       }
+      case "ExportDefaultDeclaration": {
+        needExportModule = true
+        tailSnippets.push(`${ES_MODULE_NAME}.default = ${_ast2lua(ast.declaration)}`)
+        return ``
+      }
       case "ExportNamedDeclaration": {
         needExportModule = true
-        if (ast.specifiers.length === 0) {
-          if (ast.declaration?.type == "VariableDeclaration") {
+        if (ast.declaration) {
+          if (ast.declaration.type == "VariableDeclaration") {
             // export const a = 1
             const assignmentsToken = ast.declaration.declarations.map(_ast2lua).map(e => `local ${e}`).join(';\n')
             const exportsTokens = ast.declaration.declarations.map(d => {
@@ -831,38 +879,29 @@ end`
               return `${ES_MODULE_NAME}.${exportKey} = ${exportKey}`
             })
             tailSnippets.push(...exportsTokens)
-            return `${assignmentsToken}
-          `
+            return `${assignmentsToken}`
+          } else if (ast.declaration?.type == "FunctionDeclaration") {
+            const funcName = _ast2lua(ast.declaration.id)
+            tailSnippets.push(`${ES_MODULE_NAME}.${funcName} = ${funcName}`)
+            return `${_ast2lua(ast.declaration)}`
           } else {
             return ``
           }
+        } else if (ast.specifiers.length > 0) {
+          const makeExport = s => `${ES_MODULE_NAME}.${_ast2lua(s.exported)} = ${_ast2lua(s.local)}`
+          tailSnippets.push(...ast.specifiers.map(makeExport))
+          return ``
         } else {
           return ``
         }
       }
       case "ImportDeclaration": {
-        if (ast.specifiers.length === 1) {
-          const s = ast.specifiers[0]
-          const source = `require(${_ast2lua(ast.source)})`
-          if (s.type == "ImportDefaultSpecifier" || s.type == "ImportNamespaceSpecifier") {
-            return `local ${_ast2lua(s.local)} = ${source}`
-          } else {
-            return `local ${_ast2lua(s.local)} = ${source}.${_ast2lua(s.imported)}`
-          }
+        const token = getImportDeclarationToken(ast)
+        if (opts.importStatementHoisting) {
+          importSnippets.push(token)
+          return ``
         } else {
-          const locals = ast.specifiers.map(s => _ast2lua(s.local)).join(', ')
-          const assignments = ast.specifiers.map(s => {
-            if (s.type == "ImportDefaultSpecifier" || s.type == "ImportNamespaceSpecifier") {
-              return `${_ast2lua(s.local)} = _esModule`
-            } else {
-              return `${_ast2lua(s.local)} = _esModule.${_ast2lua(s.imported)}`
-            }
-          })
-          return `local ${locals};
-          do
-            local _esModule = require(${_ast2lua(ast.source)})
-            ${assignments.join(';')}
-          end`
+          return token
         }
       }
       default:
@@ -872,22 +911,27 @@ end`
   }
   const jsBody = _ast2lua(ast)
   if (needExportModule) {
-    headSnippets.unshift(`local ${ES_MODULE_NAME} = {}`)
-    tailSnippets.push(`return ${ES_MODULE_NAME}`)
+    moduleExportInitToken = `local ${ES_MODULE_NAME} = {}`
+    // prior to module.exports = xxx
+    moduleReturnToken = `return ${ES_MODULE_NAME}`
   }
   if (needCjsonMoudle) {
-    headSnippets.unshift(`local cjson = require("cjson")`)
+    importSnippets.unshift(`local cjson = require("cjson")`)
   }
   if (needTableIsarray) {
-    headSnippets.unshift(`local isarray = require("table.isarray")`)
+    importSnippets.unshift(`local isarray = require("table.isarray")`)
   }
   if (needBitModule) {
-    headSnippets.unshift(`local bit = require("bit")`)
+    importSnippets.unshift(`local bit = require("bit")`)
   }
   return `
+  ${importSnippets.join(';')}
+
+  ${moduleExportInitToken}
   ${headSnippets.join(';')}
   ${jsBody}
-  ${tailSnippets.join(';')}`
+  ${tailSnippets.join(';')}
+  ${moduleReturnToken}`
 }
 
 function js2lua(s, opts) {

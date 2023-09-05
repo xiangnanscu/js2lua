@@ -5,6 +5,8 @@ import fs from "file-saver";
 
 const showjsAst = ref(false);
 const optionNamesDict = {
+  transformJSONStringify: true,
+  transformJSONParse: true,
   transformParseFloat: true,
   transformParseInt: true,
   transformNumber: true,
@@ -19,11 +21,15 @@ const optionNamesDict = {
 };
 const ts = "`1.${2}.3.${bar}`";
 const jscode = ref(`
+
+`);
+const jscode1 = ref(`\
+JSON.stringify({})
+JSON.parse('{}')
 Number('2')
 parseInt('2')
 parseFloat('1')
-`);
-const jscode1 = ref(`\
+Array.isArray(1)
 import {e} from "bar"
 import {e as g} from "bar"
 import * as x from "bar"

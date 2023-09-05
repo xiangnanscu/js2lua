@@ -146,12 +146,11 @@ function mergeSwitchCases(ast) {
     ast.cases = cases
   }
 }
-const BIT_SNIPPET = `local bit = require("bit")`
-const ISARRAY_SNIPPET = `local isarray = require("table.isarray")`
 function ast2lua(ast, opts) {
   p(ast.program.body)
   const headSnippets = []
   const tailSnippets = []
+  let needCjsonMoudle = false
   let needBitModule = false
   let needTableIsarray = false
   const getDefaultTokens = (params) => params.filter(p => p.type == 'AssignmentPattern')
@@ -192,6 +191,12 @@ function ast2lua(ast, opts) {
       } else if (opts.transformIsArray && funcObject == 'Array' && method == 'isArray') {
         needTableIsarray = true
         return ['isarray', argumentsToken]
+      } else if (opts.transformJSONParse && funcObject == 'JSON' && method == 'parse') {
+        needCjsonMoudle = true
+        return ['cjson.decode', argumentsToken]
+      } else if (opts.transformJSONStringify && funcObject == 'JSON' && method == 'stringify') {
+        needCjsonMoudle = true
+        return ['cjson.encode', argumentsToken]
       } else {
         return [`${funcObject}:${method}`, argumentsToken]
       }
@@ -840,11 +845,14 @@ end`
     }
   }
   const jsBody = _ast2lua(ast)
+  if (needCjsonMoudle) {
+    headSnippets.unshift(`local cjson = require("cjson")`)
+  }
   if (needTableIsarray) {
-    headSnippets.unshift(ISARRAY_SNIPPET)
+    headSnippets.unshift(`local isarray = require("table.isarray")`)
   }
   if (needBitModule) {
-    headSnippets.unshift(BIT_SNIPPET)
+    headSnippets.unshift(`local bit = require("bit")`)
   }
   return `
   ${headSnippets.join(';')}

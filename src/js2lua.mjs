@@ -30,16 +30,10 @@ function p() {
 }
 
 function js2ast(code) {
-  try {
-    const ast = parse(code, {
-      sourceType: "module"
-    });
-    return ast
-  } catch (error) {
-    console.error(error)
-    return 'throw `parsing error`'
-  }
-
+  const ast = parse(code, {
+    sourceType: "module"
+  });
+  return ast
 }
 const luaKeyWords = {
   and: "_and", break: "_break", do: "_do", else: "_else", elseif: "_elseif",
@@ -999,13 +993,6 @@ function js2lua(s, opts) {
   luacode = ast2lua(js2ast(s), opts);
   opts.debug && p(luacode)
   return formatText(luacode)
-  // try {
-  //   js = ast2lua(js2ast(s), opts);
-  //   return formatText(js)
-  // } catch (error) {
-  //   console.error(error)
-  //   return `-- PARSE ERROR: ${error}\n\n${js}`;
-  // }
 }
 export {
   js2lua,

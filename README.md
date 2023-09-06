@@ -7,7 +7,7 @@ npm install -g @xiangnanscu/js2lua
 ```
 # Usage
 ## command
-concat one or more js files and transform them to one lua string:
+Concat one or more js files and transform them to one lua string:
 ```sh
 js2lua [options] file1, file2, ...
 ```
@@ -34,15 +34,15 @@ const defaultOptions = {
 };
 ```
 ### examples
-basic:
+Basic:
 ```sh
 js2lua foo.js > foo.lua
 ```
-to disable a feature (--no-[option_name]):
+To disable a feature (--no-[option_name]):
 ```sh
 js2lua --no-transformToString foo.js
 ```
-to enable a feature (--[option_name]):
+To enable a feature (--[option_name]):
 ```sh
 js2lua --debug foo.js
 ```
@@ -71,6 +71,7 @@ js2lua(`let a = 1`, {importStatementHoisting:true})
 * [throw](#throw)
 * [transform](#transform)
 * [trycatch](#trycatch)
+* [updateExpression](#updateExpression)
 ## assignment
 ### js
 ```js
@@ -193,10 +194,7 @@ function Position:constructor(name, x, y, ...)
         y = 2
     end
     local numbers = {...}
-    (function()
-        Position.insCount = Position.insCount + 1
-        return Position.insCount
-    end)()
+    Position.insCount = Position.insCount + 1
     self.name = name
     self.x = x
     self.y = y
@@ -247,7 +245,7 @@ export function foo() { }
 ```
 ### lua
 ```lua
-local EsExport = {}
+local _M = {}
 
 local c = 1
 local d = 2
@@ -256,15 +254,15 @@ local g = 1
 local h = 2
 local function foo()
 end
-EsExport.a = {}
-EsExport["b"] = {}
-EsExport.default = {c = c}
-EsExport.d = d
-EsExport.f = e
-EsExport.g = g
-EsExport.h = h
-EsExport.foo = foo
-return EsExport
+_M.a = {}
+_M["b"] = {}
+_M.default = {c = c}
+_M.d = d
+_M.f = e
+_M.g = g
+_M.h = h
+_M.foo = foo
+return _M
 
 ```
 ## function
@@ -547,8 +545,8 @@ for _, e in ipairs(arr) do
     print(e)
     break
 end
-for _, _esPairs in ipairs(arr) do
-    local a, b = unpack(_esPairs)
+for _, __esPairs in ipairs(arr) do
+    local a, b = unpack(__esPairs)
     if b == 1 then
         goto continue
     end
@@ -738,10 +736,19 @@ bit.bnot(a)
 
 // optional
 const a = 1, b = 'foo', obj = {}, args = []
-const m = a?.b; // basic
-const o = a?.[b]['c']?.e; //chain
-obj.func?.(1, ...args); // optional call
-a.b?.c.d?.();  // chain optional call
+
+// basic
+const m = a?.b;
+
+//chain
+const o = a?.[b]['c']?.e;
+
+// optional call
+obj.func?.(1, ...args);
+
+// chain optional call
+a.b?.c.d?.();
+
 // nullish
 a ?? 'hello';
 const d = {}
@@ -1062,6 +1069,42 @@ local ok, error1 =
 )
 if not ok then
     print(error1)
+end
+
+```
+## updateExpression
+### js
+```js
+// NOTE: both i++ and ++i means ++i to lua, don't use i++ in expression context!
+// in statement context, use i = i ? 1
+i++;
+--i;
+// otherwise use a callback
+let a = --i
+let b = i++
+if (--i) {
+  print(i)
+}
+
+
+```
+### lua
+```lua
+i = i + 1
+i = i - 1
+local a = (function()
+    i = i - 1
+    return i
+end)()
+local b = (function()
+    i = i + 1
+    return i
+end)()
+if (function()
+        i = i - 1
+        return i
+    end)() then
+    print(i)
 end
 
 ```

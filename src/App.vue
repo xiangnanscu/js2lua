@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed, watch, reactive } from "vue";
-import { js2lua, js2ast } from "./js2lua.mjs";
+import { js2lua as _js2lua, js2ast as _js2ast } from "./js2lua.mjs";
 import fs from "file-saver";
 import packages from "../package.json";
 
@@ -24,7 +24,22 @@ const optionNamesDict = {
   renameCatchErrorIfNeeded: true,
   disableClassCall: true,
 };
-
+function js2lua(js, opts) {
+  try {
+    return _js2lua(js, opts);
+  } catch (error) {
+    console.error(error);
+    return `-- ERROR: ${error.message}`
+  }
+}
+function js2ast(js, opts) {
+  try {
+    return _js2ast(js, opts);
+  } catch (error) {
+    console.error(error);
+    return _js2ast(`throw new Error("ERROR: ${error.message}")`, opts)
+  }
+}
 const jscode = ref(`\
 import a, { b as bAlias, c } from "bar"
 const {k1, k2, ...rest} = {k1: 'k1', k2:'k2', k3:'k3', k4: 'k4'}
@@ -51,12 +66,6 @@ for (const filePath in files) {
 
 const luacode = computed(() => {
   return js2lua(jscode.value, selectOptions.value);
-  // try {
-  //   return js2lua(jscode.value, selectOptions.value);
-  // } catch (error) {
-  //   console.error(error);
-  //   return "--" + error.message;
-  // }
 });
 
 const jsast = computed(() => js2ast(jscode.value, selectOptions.value));

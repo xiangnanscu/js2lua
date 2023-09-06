@@ -4,15 +4,23 @@ import { parse } from "@babel/parser"
 import { formatText } from 'lua-fmt';
 
 const ES_MODULE_NAME = 'EsExport'
+const TMP_VAR_NAME = '__tmp'
 function p() {
   console.log.apply(this, arguments)
 }
 
 function js2ast(code) {
-  const ast = parse(code, {
-    sourceType: "module"
-  });
-  return ast
+  try {
+    const ast = parse(code, {
+      sourceType: "module"
+    });
+    return ast
+  } catch (error) {
+    console.error(error)
+    p(code)
+    return 'throw `parsing error`'
+  }
+
 }
 const luaKeyWords = {
   and: "_and", break: "_break", do: "_do", else: "_else", elseif: "_elseif",
@@ -165,12 +173,22 @@ function ast2lua(ast, opts) {
     const defaultTokens = getDefaultTokens(params)
     return `${defaultTokens} ${restToken}`
   }
-  const getSafePropery = (key, asIndex) => {
+  const getSafeKey = (key, asMember) => {
     key = _ast2lua(key)
     if (isKeyWords(key)) {
       return `["${key}"]`
     } else {
-      return asIndex ? `.${key}` : key
+      return asMember ? `.${key}` : key
+    }
+  }
+  const getSafePropery = (ast, asMember) => {
+    const key = _ast2lua(ast.key)
+    if (ast.computed || ast.key.type == "StringLiteral") {
+      return `[${key}]`
+    } else if (isKeyWords(key)) {
+      return `["${key}"]`
+    } else {
+      return asMember ? `.${key}` : key
     }
   }
   const getImportDeclarationToken = (ast) => {
@@ -274,7 +292,7 @@ function ast2lua(ast, opts) {
         if (flatAsts[i].computed) {
           chainKey = `${chainKey}[${_ast2lua(_ast.property)}]`
         } else {
-          const safeKey = getSafePropery(_ast.property, true)
+          const safeKey = getSafeKey(_ast.property, true)
           chainKey = `${chainKey}${safeKey}`
         }
       } else {
@@ -329,14 +347,14 @@ function ast2lua(ast, opts) {
             if (e.type == 'RestElement') {
               const restArg = _ast2lua(e.argument)
               return `${restArg} = {};
-              for i=${varibles.length}, #__tmp do
-                ${restArg}[#${restArg}+1] = __tmp[i]
+              for i=${varibles.length}, #${TMP_VAR_NAME} do
+                ${restArg}[#${restArg}+1] = ${TMP_VAR_NAME}[i]
               end`
             } else {
-              return `${_ast2lua(e)} = __tmp[${i + 1}]`
+              return `${_ast2lua(e)} = ${TMP_VAR_NAME}[${i + 1}]`
             }
           }).join(';')
-          return `${varibles.join(', ')};do local __tmp = ${_ast2lua(ast.init)}; ${assignments} end`
+          return `${varibles.join(', ')};do local ${TMP_VAR_NAME} = ${_ast2lua(ast.init)}; ${assignments} end`
         } else if (ast.id.type == 'ObjectPattern') {
           const varibles = ast.id.properties.map(p => p.type == 'RestElement' ? _ast2lua(p.argument) : `${_ast2lua(p.value)}`)
           const assignments = ast.id.properties.map(p => {
@@ -344,18 +362,18 @@ function ast2lua(ast, opts) {
               const restArg = _ast2lua(p.argument)
               const restCond = ast.id.properties.slice(0, -1).map(p => `k ~= "${_ast2lua(p.key)}"`).join(' and ')
               return `${restArg} = {};
-              for k, v in pairs(__tmp) do
+              for k, v in pairs(${TMP_VAR_NAME}) do
               if ${restCond} then
                 ${restArg}[k] = v
               end
               end`
             } else {
               const key = _ast2lua(p.key)
-              const init = isKeyWords(key) ? `__tmp["${key}"]` : `__tmp.${key}`
+              const init = isKeyWords(key) ? `${TMP_VAR_NAME}["${key}"]` : `${TMP_VAR_NAME}.${key}`
               return `${_ast2lua(p.value)} = ${init}`
             }
           }).join(';')
-          return `${varibles.join(', ')};do local __tmp = ${_ast2lua(ast.init)}; ${assignments} end`
+          return `${varibles.join(', ')};do local ${TMP_VAR_NAME} = ${_ast2lua(ast.init)}; ${assignments} end`
         } else {
           return `${_ast2lua(ast.id)} = ${_ast2lua(ast.init)}`
         }
@@ -447,8 +465,7 @@ function ast2lua(ast, opts) {
             if (e.type == 'SpreadElement') {
               return `for k, v in pairs(${_ast2lua(e.argument)}) do d[k] = v end`
             } else {
-              const key = _ast2lua(e.key)
-              return `d${e.computed || e.key.type == "StringLiteral" || isKeyWords(key) ? `[${key}]` : `.${key}`} = ${_ast2lua(e.value)}`
+              return `d${getSafePropery(e, true)} = ${_ast2lua(e.value)}`
             }
           }).join(';')} return d end)()`
         } else {
@@ -457,8 +474,7 @@ function ast2lua(ast, opts) {
 
       }
       case "ObjectProperty": {
-        const key = _ast2lua(ast.key)
-        return `${ast.computed || ast.key.type == "StringLiteral" || isKeyWords(key) ? `[${key}]` : key} = ${_ast2lua(ast.value)}`
+        return `${getSafePropery(ast)} = ${_ast2lua(ast.value)}`
       }
       case "ArrayExpression": {
         if (findNodeByType(ast.elements, "SpreadElement")) {
@@ -630,7 +646,7 @@ ${classMethods}`
         return `${ast.body.map(_ast2lua).join(',\n')}`
       }
       case "ClassProperty": {
-        return `${getSafePropery(ast.key)} = ${_ast2lua(ast.value)}`
+        return `${getSafeKey(ast.key)} = ${_ast2lua(ast.value)}`
       }
       case "ClassMethod": {
         const funcPrefixToken = getFunctionSnippet(ast.params)
@@ -640,7 +656,7 @@ ${classMethods}`
           renameThisToCls(ast.body)
           renameThisToCls(ast.params)
         }
-        return `${getSafePropery(ast.key)} = function(${joinAst(ast.params)})
+        return `${getSafeKey(ast.key)} = function(${joinAst(ast.params)})
          ${funcPrefixToken} ${_ast2lua(ast.body)} end`
       }
       case "OptionalCallExpression": {
@@ -700,9 +716,17 @@ ${classMethods}`
           && ast.left.object.property?.name == "prototype") {
           // Class.prototype.foo = function() {}
           const funcPrefixToken = getFunctionSnippet(ast.right.params)
-          const funcName = `${_ast2lua(ast.left.object.object)}:${_ast2lua(ast.left.property)}`
-          return `function ${funcName}(${(joinAst(ast.right.params))})
-            ${funcPrefixToken} ${_ast2lua(ast.right.body)} end`
+          const methodName = _ast2lua(ast.left.property)
+          if (isKeyWords(methodName)) {
+            const calleeToken = `${_ast2lua(ast.left.object.object)}["${methodName}"]`
+            const firstParam = ast.right.params.length > 0 ? 'self,' : 'self'
+            return `${calleeToken} = function(${firstParam}${(joinAst(ast.right.params))})
+              ${funcPrefixToken} ${_ast2lua(ast.right.body)} end`
+          } else {
+            const calleeToken = `${_ast2lua(ast.left.object.object)}:${methodName}`
+            return `function ${calleeToken}(${(joinAst(ast.right.params))})
+              ${funcPrefixToken} ${_ast2lua(ast.right.body)} end`
+          }
         }
         const leftToken = _ast2lua(ast.left)
         if (opts.moduleExportsToReturn && ast.left.type == "MemberExpression" &&
@@ -838,8 +862,8 @@ ${classMethods}`
         return `do
   ${ast.init ? _ast2lua(ast.init) : ''}
   while ${ast.test ? _ast2lua(ast.test) : '1'} do
-  ${_ast2lua(ast.body)}
-  ${continueLabel}
+  ${_ast2lua(ast.body)};
+  ${continueLabel};
   ${_ast2lua(ast.update)}
   end
 end`

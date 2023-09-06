@@ -1,8 +1,8 @@
 <script setup>
-import { ref, computed, watch, onUpdated } from "vue";
+import { ref, computed, watch, reactive } from "vue";
 import { js2lua, js2ast } from "./js2lua.mjs";
 import fs from "file-saver";
-import classCode from "../test/class.mjs?raw";
+import packages from "../package.json";
 
 const showjsAst = ref(false);
 const optionNamesDict = {
@@ -23,151 +23,12 @@ const optionNamesDict = {
   renameCatchErrorIfNeeded: true,
   disableClassCall: true,
 };
-const ts = "`1.${2}.3.${bar}`";
-const jscode = ref(`const [x, y, ...others] = [1, 2, 3, 4]`);
-const jscode1 = ref(`\
-import aaa from "bar"
-function baz() {}
-const bar = 111211111211111
 
-
-
-
-let s1 = 1, s2 ='\\n', h1 = h2 = h3 = 1, {j1, j2} = s
-delete foo.bar
-a ?? 'hello';
-let options = {}
-options.duration ??= 100;
-let m = a?.b;
-let n = a?.[b]?.['c']?.end?.e;
-a.b?.c?.();
-obj.func?.(1, ...args);
-print(a[1], a['b'], a[true], a.true, a.true2)
-
-
-
-
-let xx = undefined
-res.end()
-
-const FULL_PATH_REGEXP = /^https?:\\/\\/.*?\\//
-function f1(e={}) {
-  return e
-}
-for (let i = 0; i <= pattern.length; i++) {}
-const s = ${ts}
-const { version, host, ...rest } = d
-let g2 = foo ? 1 : 2
-const func1 = (e, ...args)=>[e, ...args]
-function func2(e, ...args) {
-  return [e, ...args]
-}
-a.map(e=>{return e.name})
-a.map(e=>e.name)
-print(a.length)
-print(a && b || c)
-print(a && (b || c))
-const g = [1, ...x2, 'haha', ...x3, true]
-print(a.foo, a.true, a['true'])
-let x11,x2,x3;
-const [r1, r2] = x3, {a:zz1,true:zz2} ={a:1, true:2}, c1 = 3
-const constraints = {
-  'foo': 'baz',
-  foo: 'bar',
-  ...route.opts.constraints,
-  [httpMethodStrategy.name]: route.method
-}
-while (1) {
-  print('a')
-}
-let [x1, y1] = [1,2,3]
-let k = 'a'
-let d1 = {[k]: 'a', k:'b'}
-let [a1, b1] = t
-if (path[idx] === ')') {
-  parentheses--
-} else if (path['idx'] !== '(') {
-  parentheses++
-} else if (n > 1) {
-  n++
-}
-print(i)
-try {
-  const res =foo()
-} catch {
-  console.log(error)
-}
-
-const fx = function (a) {}
-Router.prototype.foo = function (x=[], ...y) {
-  return [x, ...y]
-}
-const f2 = typeof 2
-const f = new C({x:1, y:2})
-const {k1, k2: v} = e
-if (false) {
-  throw new Error('!')
-}
-if (false) {
-  throw new CustomError({message:"haha"})
-}
-if (false) {
-  throw '!!'
-}
-if (false) {
-  throw {K:2}
-}
-class C {
-  a = 1;
-  constructor(c, b) {
-    this.c = c
-    this.b = b
-  }
-  static boo() {
-    print(1)
-    return this.a
-  }
-  foo(...rest) {
-    return [this.a, ...rest]
-  }
-}
-for (const e of arr) {
-  print(e)
-  break
-}
-for (const [a, b] of arr) {
-  print(a, b)
-  continue
-}
-for (const key in object) {
-  print(key)
-}
-function foo(x,b) {
-  const a = 1
-  return a
-}
-print(a && (b||c))
-const a = 11 , b= 'x', c = true, d = {k:1,[k]:2}, e = [1]
-if (a) {
-  f()
-}
-if (a) {
-  f()
-} else if (b) {
-  f()
-} else if (c) {
-  f()
-} else {
-  f()
-}
-if (!(this instanceof Router)) {
-  foo()
-} else {
-  bar()
-}
-
-`);
-
+const jscode = ref(`\
+import a, { b as bAlias, c } from "bar"
+const {k1, k2, ...rest} = {k1: 'k1', k2:'k2', k3:'k3', k4: 'k4'}
+const [x, y, ...others] = [1, 2, 3, 4]
+export {x, y, others}`);
 const optionNames = Object.keys(optionNamesDict);
 const selectNames = ref(
   Object.entries(optionNamesDict)
@@ -176,19 +37,16 @@ const selectNames = ref(
 );
 const selectOptions = computed(() => Object.fromEntries(selectNames.value.map((e) => [e, true])));
 const files = import.meta.glob("../test/*.mjs", { as: "raw", eager: false });
-// onUpdated(() => {
-//   files.value = import.meta.glob("../test/*.mjs", { as: "raw", eager: true });
-// });
-const tableHtmls = ref(
-  (() => {
-    const res = [];
-    for (const [filePath, jscode] of Object.entries(files)) {
-      const luacode = computed(() => js2lua(jscode, selectOptions.value));
-      res.push({ name: filePath.match(/\/(\w+)\.mjs$/)[1], jscode, luacode });
-    }
-    return res;
-  })()
-);
+for (const [filePath, jscode] of Object.entries(files)) {
+  files[filePath] = ref(jscode);
+}
+const tableHtmls = reactive([]);
+for (const filePath in files) {
+  const jscode = files[filePath];
+  const luacode = computed(() => js2lua(jscode.value, selectOptions.value));
+  const name = filePath.match(/\/(\w+)\.mjs$/)[1];
+  tableHtmls.push({ name, jscode, luacode });
+}
 
 const luacode = computed(() => {
   return js2lua(jscode.value, selectOptions.value);
@@ -245,36 +103,12 @@ watch(checkAll, (checkAll) => {
 
 <template>
   <div>
-    <table class="table table-bordered">
-      <thead>
-        <tr>
-          <!-- <th>name</th> -->
-          <th><h2>input</h2></th>
-          <th><h2>js</h2></th>
-          <th><h2>lua</h2></th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr v-for="(e, i) in tableHtmls" :key="i">
-          <td class="td-wrap">
-            <textarea class="td-textarea" :value="e.jscode" @input="e.jscode = $event.target.value"></textarea>
-          </td>
-          <td>
-            <h3>{{ e.name }}</h3>
-            <highlightjs language="javascript" :code="e.jscode" />
-          </td>
-          <td>
-            <h3>{{ e.name }}</h3>
-            <highlightjs language="lua" :code="e.luacode" />
-          </td>
-        </tr>
-      </tbody>
-    </table>
+    <h1 style="margin-bottom: 1em; text-align: center">
+      <a href="https://github.com/xiangnanscu/js2lua" :title="packages.version"> {{ packages.name }}</a>
+      - compile js to luajit
+    </h1>
     <div class="row">
-      <div class="col"></div>
-    </div>
-    <div class="row">
-      <div class="col-1">
+      <div class="col-2">
         <div :class="{ 'error-wrapper': error }">
           <div class="form-check">
             <input class="form-check-input" type="checkbox" id="label-all" v-model="checkAll" />
@@ -290,13 +124,7 @@ watch(checkAll, (checkAll) => {
       </div>
       <div class="col-3">
         <button @click="jscode = ''">clear textarea</button>
-        <textarea
-          rows="10"
-          style="height: 800px"
-          class="form-control"
-          :value="jscode"
-          @input="jscode = $event.target.value"
-        ></textarea>
+        <textarea rows="10" style="height: 500px" class="form-control" v-model="jscode"></textarea>
       </div>
       <div class="col">
         <div class="form-check-inline">
@@ -318,6 +146,38 @@ watch(checkAll, (checkAll) => {
         <highlightjs id="luacode" language="lua" :code="luacode" />
       </div>
     </div>
+    <table class="table table-bordered">
+      <thead>
+        <tr>
+          <th colspan="3">
+            <h1>take a look at features:</h1>
+            <template v-for="(e, i) in tableHtmls" :key="i">
+              <a class="link-block" :href="`#${e.name}`">{{ e.name }}</a>
+            </template>
+          </th>
+        </tr>
+      </thead>
+      <tbody>
+        <template v-for="(e, i) in tableHtmls" :key="i">
+          <tr>
+            <td colspan="3">
+              <h3 :id="e.name">{{ e.name }}</h3>
+            </td>
+          </tr>
+          <tr>
+            <td class="td-wrap">
+              <textarea class="td-textarea form-control" v-model="e.jscode"></textarea>
+            </td>
+            <td>
+              <highlightjs language="javascript" :code="e.jscode" />
+            </td>
+            <td>
+              <highlightjs language="lua" :code="e.luacode" />
+            </td>
+          </tr>
+        </template>
+      </tbody>
+    </table>
   </div>
 </template>
 
@@ -326,6 +186,9 @@ watch(checkAll, (checkAll) => {
 h2,
 h3 {
   text-align: center;
+}
+.link-block {
+  margin: 1em;
 }
 .td-wrap {
   padding: 0;

@@ -1,3 +1,4 @@
+const a = { b: '' }
 String(1)
 a.b.toString()
 JSON.stringify({})

@@ -1,1 +1,2 @@
-print(path[0])
+const a = []
+const i = a[0]

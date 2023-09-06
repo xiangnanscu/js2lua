@@ -1,6 +1,6 @@
 {
   "name": "@xiangnanscu/js2lua",
-  "version": "0.14.0",
+  "version": "0.15.0",
   "type": "module",
   "description": "Writing LuaJIT with the expressiveness of JavaScript",
   "main": "src/js2lua.mjs",
@@ -16,7 +16,7 @@
     "postpush": "while true; do git push origin master && { echo 'Git push succeeded'; break; } || echo 'Git push failed, retrying in 1 seconds'; sleep 1; done",
     "pull": "while true; do git pull origin master && { echo 'Git pull succeeded'; break; } || echo 'Git pull failed, retrying in 1 seconds'; sleep 1; done",
     "prerelease": "npm --no-git-tag-version version minor",
-    "release": "push_option=release npm run push",
+    "release": "node makeDocs.js; push_option=release npm run push",
     "rc": "yarn release",
     "replace": "find .  -type d \\( -name .git -o -name node_modules \\) -prune -o  -type f  -exec  sed -i s/validator/field/g {} \\;",
     "test": "node test.mjs"

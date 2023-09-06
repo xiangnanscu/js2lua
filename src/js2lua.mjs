@@ -3,8 +3,9 @@
 import { parse } from "@babel/parser"
 import { formatText } from 'lua-fmt';
 
-const ES_MODULE_NAME = 'EsExport'
+const ES_MODULE_NAME = '_M'
 const TMP_VAR_NAME = '__tmp'
+const ES_PAIRS = '__esPairs'
 const defaultOptions = {
   debug: false,
   importStatementHoisting: true,
@@ -20,7 +21,7 @@ const defaultOptions = {
   moduleExportsToReturn: true,
   index0To1: true,
   tryTranslateClass: true,
-  selfOperatorToCallback: true,
+  disableUpdateExpressionCallback: true,
   renameCatchErrorIfNeeded: true,
   disableClassCall: true,
 };
@@ -513,8 +514,8 @@ function ast2lua(ast, opts = {}) {
         const continueLabel = getContinueLabelIfNeeded(ast)
         ast.left.ForOfStatement = true
         if (ast.left.declarations[0]?.id.type == 'ArrayPattern') {
-          return `for _, _esPairs in ipairs(${_ast2lua(ast.right)}) do
-           local ${_ast2lua(ast.left).slice(1, -1)} = unpack(_esPairs);
+          return `for _, ${ES_PAIRS} in ipairs(${_ast2lua(ast.right)}) do
+           local ${_ast2lua(ast.left).slice(1, -1)} = unpack(${ES_PAIRS});
            ${_ast2lua(ast.body)}
            ${continueLabel} end`
         } else {
@@ -726,6 +727,7 @@ ${classMethods}`
         return getOptionalMemberExpression(ast)[0]
       }
       case "ExpressionStatement": {
+        ast.expression.ExpressionStatement = true
         return `${_ast2lua(ast.expression)}`
       }
       case "AssignmentExpression": {
@@ -839,10 +841,10 @@ ${classMethods}`
       case "UpdateExpression": {
         const n = _ast2lua(ast.argument)
         const op = ast.operator == '++' ? '+' : '-'
-        if (opts.selfOperatorToCallback) {
-          return `(function () ${n} = ${n} ${op} 1; return ${n} end)()`
-        } else {
+        if (opts.disableUpdateExpressionCallback && ast.ExpressionStatement) {
           return `${n} = ${n} ${op} 1`
+        } else {
+          return `(function () ${n} = ${n} ${op} 1; return ${n} end)()`
         }
 
       }

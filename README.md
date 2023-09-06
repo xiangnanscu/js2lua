@@ -28,7 +28,7 @@ const defaultOptions = {
   moduleExportsToReturn: true,
   index0To1: true,
   tryTranslateClass: true,
-  selfOperatorToCallback: true,
+  disableUpdateExpressionCallback: true,
   renameCatchErrorIfNeeded: true,
   disableClassCall: true,
 };

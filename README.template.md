@@ -7,7 +7,7 @@ npm install -g @xiangnanscu/js2lua
 ```
 # Usage
 ## command
-concat one or more js files and transform them to one lua string:
+Concat one or more js files and transform them to one lua string:
 ```sh
 js2lua [options] file1, file2, ...
 ```
@@ -28,21 +28,21 @@ const defaultOptions = {
   moduleExportsToReturn: true,
   index0To1: true,
   tryTranslateClass: true,
-  selfOperatorToCallback: true,
+  disableUpdateExpressionCallback: true,
   renameCatchErrorIfNeeded: true,
   disableClassCall: true,
 };
 ```
 ### examples
-basic:
+Basic:
 ```sh
 js2lua foo.js > foo.lua
 ```
-to disable a feature (--no-[option_name]):
+To disable a feature (--no-[option_name]):
 ```sh
 js2lua --no-transformToString foo.js
 ```
-to enable a feature (--[option_name]):
+To enable a feature (--[option_name]):
 ```sh
 js2lua --debug foo.js
 ```

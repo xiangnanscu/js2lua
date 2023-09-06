@@ -20,7 +20,7 @@ const argv = yargsParser(process.argv.slice(2), {
     "moduleExportsToReturn",
     "index0To1",
     "tryTranslateClass",
-    "selfOperatorToCallback",
+    "disableUpdateExpressionCallback",
     "renameCatchErrorIfNeeded",
     "disableClassCall",
   ],

@@ -5,6 +5,25 @@ import { formatText } from 'lua-fmt';
 
 const ES_MODULE_NAME = 'EsExport'
 const TMP_VAR_NAME = '__tmp'
+const defaultOptions = {
+  debug: false,
+  importStatementHoisting: true,
+  transformToString: true,
+  transformString: true,
+  transformJSONStringify: true,
+  transformJSONParse: true,
+  transformParseFloat: true,
+  transformParseInt: true,
+  transformNumber: true,
+  transformIsArray: true,
+  transformConsoleLog: true,
+  moduleExportsToReturn: true,
+  index0To1: true,
+  tryTranslateClass: true,
+  selfOperatorToCallback: true,
+  renameCatchErrorIfNeeded: true,
+  disableClassCall: true,
+};
 function p() {
   console.log.apply(this, arguments)
 }
@@ -17,7 +36,6 @@ function js2ast(code) {
     return ast
   } catch (error) {
     console.error(error)
-    p(code)
     return 'throw `parsing error`'
   }
 
@@ -155,8 +173,9 @@ function mergeSwitchCases(ast) {
     ast.cases = cases
   }
 }
-function ast2lua(ast, opts) {
-  p(ast.program.body)
+function ast2lua(ast, opts = {}) {
+  opts = { ...defaultOptions, ...opts }
+  opts.debug && p(ast?.program?.body)
   const headSnippets = []
   const tailSnippets = []
   const importSnippets = []
@@ -944,7 +963,7 @@ end`
         }
       }
       default:
-        p('unknow node', ast.type, ast)
+        opts.debug && p('unknow node', ast.type, ast)
         return ""
     }
   }
@@ -976,7 +995,7 @@ end`
 function js2lua(s, opts) {
   let luacode = "";
   luacode = ast2lua(js2ast(s), opts);
-  p(luacode)
+  opts.debug && p(luacode)
   return formatText(luacode)
   // try {
   //   js = ast2lua(js2ast(s), opts);

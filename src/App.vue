@@ -6,6 +6,7 @@ import packages from "../package.json";
 
 const showjsAst = ref(false);
 const optionNamesDict = {
+  debug: true,
   importStatementHoisting: true,
   transformToString: true,
   transformString: true,

@@ -105,7 +105,7 @@ watch(checkAll, (checkAll) => {
   <div>
     <h1 style="margin-bottom: 1em; text-align: center">
       <a href="https://github.com/xiangnanscu/js2lua" :title="packages.version"> {{ packages.name }}</a>
-      - compile js to luajit
+      - Writing LuaJIT with the expressiveness of JavaScript.
     </h1>
     <div class="row">
       <div class="col-2">

@@ -28,10 +28,19 @@ const res = []
 for (const file of files) {
   if (path.extname(file) === '.mjs') {
     const filePath = path.join(folderPath, file);
+    const name = filePath.match(/\/(\w+)\.mjs$/)[1];
+    res.push(`* [${name}](#${name})`)
+  }
+}
+for (const file of files) {
+  if (path.extname(file) === '.mjs') {
+    const filePath = path.join(folderPath, file);
+    const name = filePath.match(/\/(\w+)\.mjs$/)[1];
     const jscode = fs.readFileSync(filePath, 'utf8');
     const luacode = js2lua(jscode, opts)
-    // res.push(`<tr><td>${filePath.split('/').pop()}</td><td>js</td><td>lua</td></tr>`)
-    res.push('<tr>\n<td>\n' + filePath.split('/').pop() + '\n</td>\n<td>\n\n```js\n' + jscode + '\n```\n</td>\n<td>\n\n```lua\n' + luacode + '\n```\n</td>\n</tr>')
+    res.push(`## ${name}\n` + '### js\n```js\n' + jscode + '\n```')
+    res.push('### lua\n```lua\n' + luacode + '\n```')
+    // res.push('<tr>\n<td>\n' + filePath.split('/').pop() + '\n</td>\n<td>\n\n```js\n' + jscode + '\n```\n</td>\n<td>\n\n```lua\n' + luacode + '\n```\n</td>\n</tr>')
   }
   // break
 }

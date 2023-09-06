@@ -2,6 +2,7 @@
   "name": "@xiangnanscu/js2lua",
   "version": "0.10.0",
   "type": "module",
+  "description": "Writing LuaJIT with the expressiveness of JavaScript",
   "main": "src/js2lua.mjs",
   "scripts": {
     "dev": "vite",

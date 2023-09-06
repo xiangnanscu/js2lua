@@ -1,12 +1,9 @@
 <script setup>
-import { ref, computed, watch } from "vue";
+import { ref, computed, watch, onUpdated } from "vue";
 import { js2lua, js2ast } from "./js2lua.mjs";
 import fs from "file-saver";
 import classCode from "../test/class.mjs?raw";
-const assignmenCode = require("../test/assignment.mjs?raw")
-const files = import.meta.glob('../test/*.mjs',{ as: 'raw', eager: true });
-const modules = Object.entries(files).map( ([path, require])=>[path, require])
-console.log({modules, assignmenCode})
+
 const showjsAst = ref(false);
 const optionNamesDict = {
   importStatementHoisting: true,
@@ -27,30 +24,15 @@ const optionNamesDict = {
   disableClassCall: true,
 };
 const ts = "`1.${2}.3.${bar}`";
-const jscode = ref(assignmenCode);
+const jscode = ref(`const [x, y, ...others] = [1, 2, 3, 4]`);
 const jscode1 = ref(`\
 import aaa from "bar"
 function baz() {}
-const bar = 1
-module.exports.xxx = {}
-module.exports['yyy'] = {}
-export default {baz}
-export {bar}
-export {baz as zab}
-export const a11 = 1, b11 = 2;
-export function foo11() {}
-String(1)
-a.b.toString()
-JSON.stringify({})
-JSON.parse('{}')
-Number('2')
-parseInt('2')
-parseFloat('1')
-Array.isArray(1)
-import {e11} from "bar"
-import {e as g11} from "bar"
-import * as x from "bar"
-import d11, {a as c11, b22} from "bar"
+const bar = 111211111211111
+
+
+
+
 let s1 = 1, s2 ='\\n', h1 = h2 = h3 = 1, {j1, j2} = s
 delete foo.bar
 a ?? 'hello';
@@ -62,30 +44,12 @@ a.b?.c?.();
 obj.func?.(1, ...args);
 print(a[1], a['b'], a[true], a.true, a.true2)
 
-const p1 = new Position('p1', 1, 2, 3, 4)
-Position.echoInsCount()
-const p2 = new Position('p2', 10, 20, 30, 40)
-Position.echoInsCount()
-p1.echoPosition()
-p2.echoPosition()
-p1.say('hello')
-p1.say.call(p2)
-p1.echoArgsLength('a', 'b', 'c')
-p1.echoArgsLength.apply(p2, [1, 2])
-function Echo(x=1, y=2, ...args) {
-  this.x = x
-  this.y = y
-  this.args = args
-}
-Echo.prototype.echoX = function() {
-  console.log(this.x)
-}
-Echo.prototype.echoY = function() {
-  console.log(this.y)
-}
+
+
+
 let xx = undefined
 res.end()
-print(path[0])
+
 const FULL_PATH_REGEXP = /^https?:\\/\\/.*?\\//
 function f1(e={}) {
   return e
@@ -183,7 +147,7 @@ function foo(x,b) {
   return a
 }
 print(a && (b||c))
-const a = 1 , b= 'x', c = true, d = {k:1,[k]:2}, e = [1]
+const a = 11 , b= 'x', c = true, d = {k:1,[k]:2}, e = [1]
 if (a) {
   f()
 }
@@ -201,24 +165,7 @@ if (!(this instanceof Router)) {
 } else {
   bar()
 }
-a += 1
-a -= 1
-a *= 1
-a /= 1
-a %= 1
-a &&= b
-a ||= b
-a >> 2
-2 << a
-a & 2
-a &= 2
-a | 2
-a |= 2
-a ^ 2
-a ^= 2
-a ** 2
-a **= 2
-~a
+
 `);
 
 const optionNames = Object.keys(optionNamesDict);
@@ -228,6 +175,21 @@ const selectNames = ref(
     .map(([k, v]) => k)
 );
 const selectOptions = computed(() => Object.fromEntries(selectNames.value.map((e) => [e, true])));
+const files = import.meta.glob("../test/*.mjs", { as: "raw", eager: false });
+// onUpdated(() => {
+//   files.value = import.meta.glob("../test/*.mjs", { as: "raw", eager: true });
+// });
+const tableHtmls = ref(
+  (() => {
+    const res = [];
+    for (const [filePath, jscode] of Object.entries(files)) {
+      const luacode = computed(() => js2lua(jscode, selectOptions.value));
+      res.push({ name: filePath.match(/\/(\w+)\.mjs$/)[1], jscode, luacode });
+    }
+    return res;
+  })()
+);
+
 const luacode = computed(() => {
   return js2lua(jscode.value, selectOptions.value);
   // try {
@@ -243,7 +205,7 @@ function copylua() {
   CopyToClipboard("luacode");
 }
 function saveluaAs() {
-  fs.saveAs(new Blob([luacode.value]), "test.lua");
+  fs.saveAs(new Blob([luacode.value]), "test11.lua");
 }
 function CopyToClipboard(containerid) {
   if (window.getSelection) {
@@ -283,6 +245,31 @@ watch(checkAll, (checkAll) => {
 
 <template>
   <div>
+    <table class="table table-bordered">
+      <thead>
+        <tr>
+          <!-- <th>name</th> -->
+          <th><h2>input</h2></th>
+          <th><h2>js</h2></th>
+          <th><h2>lua</h2></th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr v-for="(e, i) in tableHtmls" :key="i">
+          <td class="td-wrap">
+            <textarea class="td-textarea" :value="e.jscode" @input="e.jscode = $event.target.value"></textarea>
+          </td>
+          <td>
+            <h3>{{ e.name }}</h3>
+            <highlightjs language="javascript" :code="e.jscode" />
+          </td>
+          <td>
+            <h3>{{ e.name }}</h3>
+            <highlightjs language="lua" :code="e.luacode" />
+          </td>
+        </tr>
+      </tbody>
+    </table>
     <div class="row">
       <div class="col"></div>
     </div>
@@ -336,6 +323,22 @@ watch(checkAll, (checkAll) => {
 
 <style lang="scss">
 @import "node_modules/bootstrap/scss/bootstrap.scss";
+h2,
+h3 {
+  text-align: center;
+}
+.td-wrap {
+  padding: 0;
+  height: 10em;
+  width: 90em;
+}
+.td-textarea {
+  display: block;
+  height: 100%;
+  width: 100%;
+  border: 0;
+  box-sizing: border-box;
+}
 span.hljs-string {
   color: #22863a;
 }

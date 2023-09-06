@@ -323,7 +323,20 @@ function ast2lua(ast, opts) {
           }
           return res.join(';\nlocal ')
         } else if (ast.id.type == 'ArrayPattern') {
-          return `${_ast2lua(ast.id).slice(1, -1)} = unpack(${_ast2lua(ast.init)})`
+          // return `${_ast2lua(ast.id).slice(1, -1)} = unpack(${_ast2lua(ast.init)})`
+          const varibles = ast.id.elements.map(e => e.type == 'RestElement' ? _ast2lua(e.argument) : `${_ast2lua(e)}`)
+          const assignments = ast.id.elements.map((e, i) => {
+            if (e.type == 'RestElement') {
+              const restArg = _ast2lua(e.argument)
+              return `${restArg} = {};
+              for i=${varibles.length}, #__tmp do
+                ${restArg}[#${restArg}+1] = __tmp[i]
+              end`
+            } else {
+              return `${_ast2lua(e)} = __tmp[${i + 1}]`
+            }
+          }).join(';')
+          return `${varibles.join(', ')};do local __tmp = ${_ast2lua(ast.init)}; ${assignments} end`
         } else if (ast.id.type == 'ObjectPattern') {
           const varibles = ast.id.properties.map(p => p.type == 'RestElement' ? _ast2lua(p.argument) : `${_ast2lua(p.value)}`)
           const assignments = ast.id.properties.map(p => {
@@ -503,6 +516,13 @@ function ast2lua(ast, opts) {
         } else {
           return `${s}`
         }
+      }
+      case "ObjectMethod": {
+        const className = _ast2lua(ast.key)
+        const funcPrefixToken = getFunctionSnippet(ast.params)
+        const funcBody = _ast2lua(ast.body)
+        const paramsToken = joinAst(ast.params)
+        return ` ${className} = function (${paramsToken}) ${funcPrefixToken} ${funcBody} end`
       }
       case "FunctionDeclaration": {
         const className = _ast2lua(ast.id)
@@ -693,10 +713,8 @@ ${classMethods}`
           } else {
             needExportModule = true
             tailSnippets.push(`${ES_MODULE_NAME}${leftToken.slice('module.exports'.length)} = ${_ast2lua(ast.right)}`)
-            return ``
           }
           return ``
-
         } else if (ast.right.type == "AssignmentExpression") {
           // chain assignment: a = b = 1
           const left = _ast2lua(ast.left)

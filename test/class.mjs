@@ -22,3 +22,14 @@ class Position {
     console.log(`${this.name} say: ${word}, first number is ${this.numbers[0]}`)
   }
 }
+
+const p1 = new Position('p1', 1, 2, 3, 4)
+Position.echoInsCount()
+const p2 = new Position('p2', 10, 20, 30, 40)
+Position.echoInsCount()
+p1.echoPosition()
+p2.echoPosition()
+p1.say('hello')
+p1.say.call(p2)
+p1.echoNumbersLength('a', 'b', 'c')
+p1.echoNumbersLength.apply(p2, [1, 2])

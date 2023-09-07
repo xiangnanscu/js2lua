@@ -52,6 +52,7 @@ const logicMap = {
   '!==': '~=',
   '!=': '~=',
 }
+const getFirstParam = (params) => params.length > 0 ? 'self,' : 'self'
 const isNode = e => e && typeof e == 'object' && e.type
 function walkAst(ast, callback, depth) {
   const nextDepth = depth === undefined ? undefined : depth - 1
@@ -242,8 +243,8 @@ function ast2lua(ast, opts = {}) {
       // foo.bar()
       const funcObject = _ast2lua(ast.callee.object)
       const method = _ast2lua(ast.callee.property)
-      if (funcObject == 'super') {
-        return []
+      if (ast.callee.object.type == 'Super') {
+        return [`${funcObject}.${method}`, `${getFirstParam(ast.arguments)}${argumentsToken}`]
       } else if (method == 'call') {
         return [funcObject, argumentsToken]
       } else if (method == 'apply') {
@@ -272,6 +273,7 @@ function ast2lua(ast, opts = {}) {
         return [`${funcObject}:${method}`, argumentsToken]
       }
     } else {
+      // foo()
       if (opts.transformParseInt && calleeToken == 'parseInt') {
         return ['math.floor', argumentsToken]
       } else if (opts.transformParseFloat && calleeToken == 'parseFloat') {
@@ -591,17 +593,21 @@ end`
       }
       case "ClassDeclaration": {
         const superClassToken = ast.superClass ? `{${_ast2lua(ast.superClass)}}` : ``
+        ast.superClass && walkAst(ast.body.body, e => {
+          if (e.type === 'MemberExpression' && e.object.type == 'Super') {
+            e.object.superClass = ast.superClass
+          }
+        })
         if (!opts.disableClassCall) {
           return `local ${_ast2lua(ast.id)} = class ${superClassToken} {
             ${_ast2lua(ast.body)}}`
         } else {
           const className = _ast2lua(ast.id)
           const classMethods = ast.body.body.filter(e => e.type === 'ClassMethod' && e.kind !== 'constructor').map(b => {
-
             const key = _ast2lua(b.key)
             const funcPrefixToken = getFunctionSnippet(b.params)
             const safeDeclare = isKeyWords(key) ? `${className}["${key}"] = function` : `function ${className}:${key}`
-            const firstParam = isKeyWords(key) ? b.params.length > 0 ? 'self,' : 'self' : ''
+            const firstParam = isKeyWords(key) ? getFirstParam(b.params) : ''
             return `${safeDeclare}(${firstParam}${joinAst(b.params)})
             ${funcPrefixToken}
             ${_ast2lua(b.body)}
@@ -695,10 +701,10 @@ ${classMethods}`
           originFuncToken = originFuncToken.slice(1) + '.length'
         }
         const token = `(function()
-          local _fn = ${originFuncToken}
-          if _fn == nil then
+          local ${TMP_VAR_NAME} = ${originFuncToken}
+          if ${TMP_VAR_NAME} == nil then
             return nil
-          elseif type(_fn) ~= 'function' then
+          elseif type(${TMP_VAR_NAME}) ~= 'function' then
             error('${funcName} is not a function')
           else
             return ${callee}(${args})
@@ -710,7 +716,9 @@ ${classMethods}`
       case "MemberExpression": {
         const object = _ast2lua(ast.object)
         const key = _ast2lua(ast.property)
-        if (key == 'length') {
+        if (ast.object.type == 'Super') {
+          return `${object}.${key}`
+        } else if (key == 'length') {
           return '#' + object
         } else if (isKeyWords(key)) {
           return `${object}["${key}"]`
@@ -741,7 +749,7 @@ ${classMethods}`
           const methodName = _ast2lua(ast.left.property)
           if (isKeyWords(methodName)) {
             const calleeToken = `${_ast2lua(ast.left.object.object)}["${methodName}"]`
-            const firstParam = ast.right.params.length > 0 ? 'self,' : 'self'
+            const firstParam = getFirstParam(ast.right.params)
             return `${calleeToken} = function(${firstParam}${(joinAst(ast.right.params))})
               ${funcPrefixToken} ${_ast2lua(ast.right.body)} end`
           } else {
@@ -896,7 +904,7 @@ end`
         return `unpack(${_ast2lua(ast.argument)})`
       }
       case "Super": {
-        return `super`
+        return ast.superClass ? _ast2lua(ast.superClass) : `super`
       }
       case "SequenceExpression": {
         return `{${ast.expressions.map(_ast2lua).join(';')}}`

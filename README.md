@@ -38,11 +38,11 @@ Basic:
 ```sh
 js2lua foo.js > foo.lua
 ```
-To disable a feature (--no-[option_name]):
+To disable a feature `--no-[option]`:
 ```sh
 js2lua --no-transformToString foo.js
 ```
-To enable a feature (--[option_name]):
+To enable a feature `--[option]`:
 ```sh
 js2lua --debug foo.js
 ```

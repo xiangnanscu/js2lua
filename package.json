@@ -1,12 +1,22 @@
 {
   "name": "@xiangnanscu/js2lua",
-  "version": "0.18.0",
+  "version": "0.19.0",
   "type": "module",
   "description": "Writing LuaJIT with the expressiveness of JavaScript",
   "main": "src/js2lua.mjs",
   "bin": {
     "js2lua": "bin/js2lua.js"
   },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/xiangnanscu/js2lua.git"
+  },
+  "author": "Nan Xiang",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/xiangnanscu/js2lua/issues"
+  },
+  "homepage": "https://xnscu.com/js2lua/",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
@@ -18,7 +28,7 @@
     "prerelease": "npm --no-git-tag-version version minor",
     "release": "node makeDocs.js && push_option=release npm run push",
     "rc": "yarn release",
-    "replace": "find .  -type d \\( -name .git -o -name node_modules \\) -prune -o  -type f  -exec  sed -i s/validator/field/g {} \\;",
+    "replace": "find .  -type d \\( -name .git -o -name node_modules \\) -prune -o  -type f  -exec  sed -i s/js2lua/field/g {} \\;",
     "test": "node test.mjs"
   },
   "dependencies": {

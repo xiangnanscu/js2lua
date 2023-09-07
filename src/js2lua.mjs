@@ -593,17 +593,18 @@ end`
       }
       case "ClassDeclaration": {
         const superClassToken = ast.superClass ? `{${_ast2lua(ast.superClass)}}` : ``
-        ast.superClass && walkAst(ast.body.body, e => {
-          if (e.type === 'MemberExpression' && e.object.type == 'Super') {
-            e.object.superClass = ast.superClass
-          }
-        })
         if (!opts.disableClassCall) {
           return `local ${_ast2lua(ast.id)} = class ${superClassToken} {
             ${_ast2lua(ast.body)}}`
         } else {
           const className = _ast2lua(ast.id)
-          const classMethods = ast.body.body.filter(e => e.type === 'ClassMethod' && e.kind !== 'constructor').map(b => {
+          const classMethodsNodes = ast.body.body.filter(e => e.type === 'ClassMethod' && e.kind !== 'constructor')
+          ast.superClass && walkAst(classMethodsNodes, e => {
+            if (e.type === 'MemberExpression' && e.object.type == 'Super') {
+              e.object.superClass = ast.superClass
+            }
+          })
+          const classMethods = classMethodsNodes.map(b => {
             const key = _ast2lua(b.key)
             const funcPrefixToken = getFunctionSnippet(b.params)
             const safeDeclare = isKeyWords(key) ? `${className}["${key}"] = function` : `function ${className}:${key}`
@@ -631,41 +632,53 @@ end`
           }).join(',')
           const constructorNode = findNode(ast.body, e => e.kind == 'constructor')
           const superClass__indexToken = ast.superClass ? `__index = ${_ast2lua(ast.superClass)},` : ''
-          if (!constructorNode) {
-            return `\
-local ${className} = setmetatable({}, {
-  ${superClass__indexToken}
-  __call = function(t)
-    local self = t:new();
-    self:constructor();
-    return self;
-  end})
-${className}.__index = ${className};${ClassProperties};
-function ${className}.new(cls) return setmetatable({${InstanceProperties}}, cls) end
-function ${className}:constructor() end
-${classMethods}`
-          } else {
+          if (constructorNode) {
             // constructorNode exists
+            ast.superClass && walkAst(constructorNode.body, e => {
+              if (e.type === 'MemberExpression' && e.object.type == 'Super') {
+                e.object.superClass = ast.superClass
+              }
+              if (e.type == 'CallExpression' && e.callee.type == 'Super') {
+                e.callee = {
+                  type: 'MemberExpression',
+                  object: { type: 'Super', superClass: ast.superClass },
+                  property: { type: 'Identifier', name: 'constructor' }
+                }
+              }
+            })
             const funcPrefixToken = getFunctionSnippet(constructorNode.params)
             const funcBody = _ast2lua(constructorNode.body)
             const paramsToken = joinAst(constructorNode.params)
             const metaParamsToken = constructorNode.params.length > 0 ? ', ' + paramsToken : paramsToken
             return `\
-local ${className} = setmetatable({}, {
-  ${superClass__indexToken}
-  __call = function(t${metaParamsToken})
-    local self = t:new();
-    self:constructor(${paramsToken});
-    return self;
-  end})
-${className}.__index = ${className}
-${ClassProperties}
-function ${className}.new(cls) return setmetatable({${InstanceProperties}}, cls) end
-function ${className}:constructor(${paramsToken})
-  ${funcPrefixToken}
-  ${funcBody}
-end
-${classMethods}`
+            local ${className} = setmetatable({}, {
+              ${superClass__indexToken}
+              __call = function(t${metaParamsToken})
+                local self = t:new();
+                self:constructor(${paramsToken});
+                return self;
+              end})
+            ${className}.__index = ${className}
+            ${ClassProperties}
+            function ${className}.new(cls) return setmetatable({${InstanceProperties}}, cls) end
+            function ${className}:constructor(${paramsToken})
+              ${funcPrefixToken}
+              ${funcBody}
+            end
+            ${classMethods}`
+          } else {
+            return `\
+            local ${className} = setmetatable({}, {
+              ${superClass__indexToken}
+              __call = function(t)
+                local self = t:new();
+                self:constructor();
+                return self;
+              end})
+            ${className}.__index = ${className};${ClassProperties};
+            function ${className}.new(cls) return setmetatable({${InstanceProperties}}, cls) end
+            function ${className}:constructor() end
+            ${classMethods}`
           }
         }
       }

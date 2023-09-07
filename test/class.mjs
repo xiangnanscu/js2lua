@@ -1,8 +1,14 @@
-class Position {
+class BasePosition {
+  say(word = 'base haha') {
+    console.log(`Base say: ${word}`)
+  }
+}
+class Position extends BasePosition {
   static insCount = 0
   start = 0
   end = 1;
   constructor(name, x = 1, y = 2, ...numbers) {
+    super()
     Position.insCount++
     this.name = name
     this.x = x
@@ -19,6 +25,7 @@ class Position {
     console.log('numbers length:', this.name, this.numbers.length)
   }
   say(word = 'haha') {
+    super.say(word)
     console.log(`${this.name} say: ${word}, first number is ${this.numbers[0]}`)
   }
 }

@@ -132,11 +132,17 @@ end
 ## class
 ### js
 ```js
-class Position {
+class BasePosition {
+  say(word = 'base haha') {
+    console.log(`Base say: ${word}`)
+  }
+}
+class Position extends BasePosition {
   static insCount = 0
   start = 0
   end = 1;
   constructor(name, x = 1, y = 2, ...numbers) {
+    super()
     Position.insCount++
     this.name = name
     this.x = x
@@ -153,6 +159,7 @@ class Position {
     console.log('numbers length:', this.name, this.numbers.length)
   }
   say(word = 'haha') {
+    super.say(word)
     console.log(`${this.name} say: ${word}, first number is ${this.numbers[0]}`)
   }
 }
@@ -170,10 +177,34 @@ p1.echoNumbersLength.apply(p2, [1, 2])
 ```
 ### lua
 ```lua
+local BasePosition =
+    setmetatable(
+    {},
+    {
+        __call = function(t)
+            local self = t:new()
+            self:constructor()
+            return self
+        end
+    }
+)
+BasePosition.__index = BasePosition
+function BasePosition.new(cls)
+    return setmetatable({}, cls)
+end
+function BasePosition:constructor()
+end
+function BasePosition:say(word)
+    if word == nil then
+        word = "base haha"
+    end
+    print(string.format([=[Base say: %s]=], word))
+end
 local Position =
     setmetatable(
     {},
     {
+        __index = BasePosition,
         __call = function(t, name, x, y, ...)
             local self = t:new()
             self:constructor(name, x, y, ...)
@@ -194,6 +225,7 @@ function Position:constructor(name, x, y, ...)
         y = 2
     end
     local numbers = {...}
+    BasePosition.constructor(self)
     Position.insCount = Position.insCount + 1
     self.name = name
     self.x = x
@@ -213,6 +245,7 @@ function Position:say(word)
     if word == nil then
         word = "haha"
     end
+    BasePosition.say(self, word)
     print(string.format([=[%s say: %s, first number is %s]=], self.name, word, self.numbers[1]))
 end
 local p1 = Position("p1", 1, 2, 3, 4)
@@ -669,26 +702,26 @@ local o = (function()
     end
 end)()
 (function()
-    local _fn = obj.func
-    if _fn == nil then
+    local __tmp = obj.func
+    if __tmp == nil then
         return nil
-    elseif type(_fn) ~= "function" then
+    elseif type(__tmp) ~= "function" then
         error("obj.func is not a function")
     else
         return obj:func(1, unpack({1, 2, 3}))
     end
 end)()
 (function()
-    local _fn = (function()
+    local __tmp = (function()
         if a.b == nil then
             return nil
         else
             return a.b.c
         end
     end)()
-    if _fn == nil then
+    if __tmp == nil then
         return nil
-    elseif type(_fn) ~= "function" then
+    elseif type(__tmp) ~= "function" then
         error("a.b.c is not a function")
     else
         return a.b.c()
@@ -777,26 +810,26 @@ local o = (function()
     end
 end)()
 (function()
-    local _fn = obj.func
-    if _fn == nil then
+    local __tmp = obj.func
+    if __tmp == nil then
         return nil
-    elseif type(_fn) ~= "function" then
+    elseif type(__tmp) ~= "function" then
         error("obj.func is not a function")
     else
         return obj:func(1, unpack(args))
     end
 end)()
 (function()
-    local _fn = (function()
+    local __tmp = (function()
         if a.b == nil then
             return nil
         else
             return a.b.c.d
         end
     end)()
-    if _fn == nil then
+    if __tmp == nil then
         return nil
-    elseif type(_fn) ~= "function" then
+    elseif type(__tmp) ~= "function" then
         error("a.b.c.d is not a function")
     else
         return a.b.c.d()

@@ -29,7 +29,7 @@ function js2lua(js, opts) {
     return _js2lua(js, opts);
   } catch (error) {
     console.error(error);
-    return `-- ERROR: ${error.message}`
+    return `-- ERROR: ${error.message}`;
   }
 }
 function js2ast(js, opts) {
@@ -37,7 +37,7 @@ function js2ast(js, opts) {
     return _js2ast(js, opts);
   } catch (error) {
     console.error(error);
-    return _js2ast(`throw new Error("ERROR: ${error.message}")`, opts)
+    return _js2ast(`throw new Error("ERROR: ${error.message}")`, opts);
   }
 }
 const jscode = ref(`\

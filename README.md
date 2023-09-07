@@ -323,13 +323,13 @@ local func1 = function(x, y, ...)
     end
     local args = {...}
     return (function()
-        local a = {}
-        a[#a + 1] = x
-        a[#a + 1] = y
+        local __tmp = {}
+        __tmp[#__tmp + 1] = x
+        __tmp[#__tmp + 1] = y
         for _, v in ipairs(args) do
-            a[#a + 1] = v
+            __tmp[#__tmp + 1] = v
         end
-        return a
+        return __tmp
     end)()
 end
 local function func2(x, y, ...)
@@ -341,13 +341,13 @@ local function func2(x, y, ...)
     end
     local args = {...}
     return (function()
-        local d = {}
-        d.x = x
-        d.y = y
+        local __tmp = {}
+        __tmp.x = x
+        __tmp.y = y
         for k, v in pairs(args) do
-            d[k] = v
+            __tmp[k] = v
         end
-        return d
+        return __tmp
     end)()
 end
 local Echo =
@@ -545,8 +545,8 @@ for _, e in ipairs(arr) do
     print(e)
     break
 end
-for _, __esPairs in ipairs(arr) do
-    local a, b = unpack(__esPairs)
+for _, esPairs in ipairs(arr) do
+    local a, b = unpack(esPairs)
     if b == 1 then
         goto continue
     end
@@ -586,14 +586,14 @@ local foo = "bar"
 local d1 = {foo = 1, [foo] = 2, ["k3"] = 3, [5] = 5, [true] = 6}
 local d2 = {["end"] = 1, end1 = 2}
 local d3 = (function()
-    local d = {}
-    d["end"] = 1
-    d.end1 = 2
+    local __tmp = {}
+    __tmp["end"] = 1
+    __tmp.end1 = 2
     for k, v in pairs(d2) do
-        d[k] = v
+        __tmp[k] = v
     end
-    d["and"] = 3
-    return d
+    __tmp["and"] = 3
+    return __tmp
 end)()
 local a = {["true"] = 1, [true] = 2}
 
@@ -841,14 +841,14 @@ foo.bar = nil
 print(#foo)
 local URL_PATTERN = [=[^https?:\/\/.*?\/]=]
 local constraints = (function()
-    local d = {}
-    d["foo"] = "baz"
-    d.foo = "bar"
+    local __tmp = {}
+    __tmp["foo"] = "baz"
+    __tmp.foo = "bar"
     for k, v in pairs(route.opts.constraints) do
-        d[k] = v
+        __tmp[k] = v
     end
-    d[httpMethodStrategy.name] = route.method
-    return d
+    __tmp[httpMethodStrategy.name] = route.method
+    return __tmp
 end)()
 
 ```
@@ -867,13 +867,13 @@ local d = {x = 1, y = 2, z = 3}
 local v1, v2, v
 do
     local __tmp = (function()
-        local a = {}
-        a[#a + 1] = 4
-        a[#a + 1] = 5
+        local __tmp = {}
+        __tmp[#__tmp + 1] = 4
+        __tmp[#__tmp + 1] = 5
         for _, v in ipairs(a) do
-            a[#a + 1] = v
+            __tmp[#__tmp + 1] = v
         end
-        return a
+        return __tmp
     end)()
     v1 = __tmp[1]
     v2 = __tmp[2]
@@ -885,12 +885,12 @@ end
 local k1, k2, k
 do
     local __tmp = (function()
-        local d = {}
+        local __tmp = {}
         for k, v in pairs(d) do
-            d[k] = v
+            __tmp[k] = v
         end
-        d.foo = "bar"
-        return d
+        __tmp.foo = "bar"
+        return __tmp
     end)()
     k1 = __tmp.x
     k2 = __tmp.y
@@ -944,8 +944,8 @@ switch (c) {
 ```lua
 local c = "v2"
 repeat
-    local testExp = c
-    if testExp == "v1" then
+    local caseExp = c
+    if caseExp == "v1" then
         print(1)
         break
     else
@@ -953,11 +953,11 @@ repeat
     end
 until (false)
 repeat
-    local testExp = c
-    if testExp == "v1" then
+    local caseExp = c
+    if caseExp == "v1" then
         print(1)
         break
-    elseif testExp == "v2" or testExp == "v3" then
+    elseif caseExp == "v2" or caseExp == "v3" then
         print(2)
         break
     else

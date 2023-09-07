@@ -5,7 +5,8 @@ import { formatText } from 'lua-fmt';
 
 const ES_MODULE_NAME = '_M'
 const TMP_VAR_NAME = '__tmp'
-const ES_PAIRS = '__esPairs'
+const ES_PAIRS = 'esPairs'
+const CASE_EXP_NAME = 'caseExp'
 const defaultOptions = {
   debug: false,
   importStatementHoisting: true,
@@ -475,13 +476,13 @@ function ast2lua(ast, opts = {}) {
       }
       case "ObjectExpression": {
         if (findNodeByType(ast.properties, "SpreadElement")) {
-          return `(function() local d = {}; ${ast.properties.map(e => {
+          return `(function() local ${TMP_VAR_NAME} = {}; ${ast.properties.map(e => {
             if (e.type == 'SpreadElement') {
-              return `for k, v in pairs(${_ast2lua(e.argument)}) do d[k] = v end`
+              return `for k, v in pairs(${_ast2lua(e.argument)}) do ${TMP_VAR_NAME}[k] = v end`
             } else {
-              return `d${getSafePropery(e, true)} = ${_ast2lua(e.value)}`
+              return `${TMP_VAR_NAME}${getSafePropery(e, true)} = ${_ast2lua(e.value)}`
             }
-          }).join(';')} return d end)()`
+          }).join(';')} return ${TMP_VAR_NAME} end)()`
         } else {
           return `{${joinAst(ast.properties)}}`
         }
@@ -492,13 +493,13 @@ function ast2lua(ast, opts = {}) {
       }
       case "ArrayExpression": {
         if (findNodeByType(ast.elements, "SpreadElement")) {
-          const iife = `(function() local a = {}; ${ast.elements.map(e => {
+          const iife = `(function() local ${TMP_VAR_NAME} = {}; ${ast.elements.map(e => {
             if (e.type == 'SpreadElement') {
-              return `for _, v in ipairs(${_ast2lua(e.argument)}) do a[#a + 1] = v end`
+              return `for _, v in ipairs(${_ast2lua(e.argument)}) do ${TMP_VAR_NAME}[#${TMP_VAR_NAME} + 1] = v end`
             } else {
-              return `a[#a + 1] = ${_ast2lua(e)}`
+              return `${TMP_VAR_NAME}[#${TMP_VAR_NAME} + 1] = ${_ast2lua(e)}`
             }
-          }).join(';')} return a end)()`
+          }).join(';')} return ${TMP_VAR_NAME} end)()`
           return iife
         } else {
           return `{${joinAst(ast.elements)}}`
@@ -508,8 +509,9 @@ function ast2lua(ast, opts = {}) {
         const continueLabel = getContinueLabelIfNeeded(ast)
         ast.left.ForOfStatement = true
         if (ast.left.declarations[0]?.id.type == 'ArrayPattern') {
-          return `for _, ${ES_PAIRS} in ipairs(${_ast2lua(ast.right)}) do
-           local ${_ast2lua(ast.left).slice(1, -1)} = unpack(${ES_PAIRS});
+          const pairsName = hasIdentifier(ast.body, ES_PAIRS) ? TMP_VAR_NAME : ES_PAIRS
+          return `for _, ${pairsName} in ipairs(${_ast2lua(ast.right)}) do
+           local ${_ast2lua(ast.left).slice(1, -1)} = unpack(${pairsName});
            ${_ast2lua(ast.body)}
            ${continueLabel} end`
         } else {
@@ -896,7 +898,7 @@ end`
       }
       case "SwitchStatement": {
         mergeSwitchCases(ast)
-        const testExpToken = hasIdentifier(ast, 'testExp') ? `____testExp` : "testExp"
+        const testExpToken = hasIdentifier(ast, CASE_EXP_NAME) ? TMP_VAR_NAME : CASE_EXP_NAME
         return `repeat
         local ${testExpToken} = ${_ast2lua(ast.discriminant)}
         ${ast.cases.map((c, i) => {

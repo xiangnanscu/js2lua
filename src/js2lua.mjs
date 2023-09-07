@@ -242,7 +242,9 @@ function ast2lua(ast, opts = {}) {
       // foo.bar()
       const funcObject = _ast2lua(ast.callee.object)
       const method = _ast2lua(ast.callee.property)
-      if (method == 'call') {
+      if (funcObject == 'super') {
+        return []
+      } else if (method == 'call') {
         return [funcObject, argumentsToken]
       } else if (method == 'apply') {
         const [a, b] = ast.arguments
@@ -595,6 +597,7 @@ end`
         } else {
           const className = _ast2lua(ast.id)
           const classMethods = ast.body.body.filter(e => e.type === 'ClassMethod' && e.kind !== 'constructor').map(b => {
+
             const key = _ast2lua(b.key)
             const funcPrefixToken = getFunctionSnippet(b.params)
             const safeDeclare = isKeyWords(key) ? `${className}["${key}"] = function` : `function ${className}:${key}`
@@ -636,12 +639,14 @@ function ${className}.new(cls) return setmetatable({${InstanceProperties}}, cls)
 function ${className}:constructor() end
 ${classMethods}`
           } else {
+            // constructorNode exists
             const funcPrefixToken = getFunctionSnippet(constructorNode.params)
             const funcBody = _ast2lua(constructorNode.body)
             const paramsToken = joinAst(constructorNode.params)
             const metaParamsToken = constructorNode.params.length > 0 ? ', ' + paramsToken : paramsToken
             return `\
 local ${className} = setmetatable({}, {
+  ${superClass__indexToken}
   __call = function(t${metaParamsToken})
     local self = t:new();
     self:constructor(${paramsToken});

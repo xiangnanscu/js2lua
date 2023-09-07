@@ -41,10 +41,18 @@ function js2ast(js, opts) {
   }
 }
 const jscode = ref(`\
-import a, { b as bAlias, c } from "bar"
-const {k1, k2, ...rest} = {k1: 'k1', k2:'k2', k3:'k3', k4: 'k4'}
-const [x, y, ...others] = [1, 2, 3, 4]
-export {x, y, others}`);
+class Child extends Parent {
+  static myMethod(msg) {
+    super.myMethod(msg);
+  }
+  constructor(x, y) {
+    super(x)
+    this.y = y
+  }
+  myMethod(msg) {
+    super.myMethod(msg);
+  }
+}`);
 const optionNames = Object.keys(optionNamesDict);
 const selectNames = ref(
   Object.entries(optionNamesDict)
@@ -63,7 +71,7 @@ for (const filePath in files) {
   const name = filePath.match(/\/(\w+)\.mjs$/)[1];
   tableHtmls.push({ name, jscode, luacode });
 }
-
+if (process.env.NODE_ENV === "development") tableHtmls.splice(0, tableHtmls.length);
 const luacode = computed(() => {
   return js2lua(jscode.value, selectOptions.value);
 });

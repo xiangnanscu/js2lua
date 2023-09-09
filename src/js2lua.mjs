@@ -32,6 +32,7 @@ function p() {
 
 function js2ast(code) {
   const ast = parse(code, {
+    plugins: ['typescript'],
     sourceType: "module"
   });
   return ast

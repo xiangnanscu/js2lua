@@ -1,6 +1,13 @@
 const foo = { bar() { } }
+const bar = 'bar'
 // translate foo.bar() => foo:bar()
 foo.bar()
+foo[bar]()
+foo[1]()
+foo['bar']()
+foo['bar' || 'foo']();
+[].concat([1, 2, 3]);
+/a/.exec();
 foo.map(e => { return e.name })
 foo.map(e => e.name)
 foo.map(function (e) { return e.name })

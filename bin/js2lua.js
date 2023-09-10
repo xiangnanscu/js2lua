@@ -1,29 +1,11 @@
 #!/usr/bin/env node
 
-import { js2lua } from "../src/js2lua.mjs";
+import { js2lua, defaultOptions } from "../src/js2lua.mjs";
 import fs from "fs";
 import yargsParser from "yargs-parser";
 
 const argv = yargsParser(process.argv.slice(2), {
-  boolean: [
-    "debug",
-    "importStatementHoisting",
-    "transformToString",
-    "transformString",
-    "transformJSONStringify",
-    "transformJSONParse",
-    "transformParseFloat",
-    "transformParseInt",
-    "transformNumber",
-    "transformIsArray",
-    "transformConsoleLog",
-    "moduleExportsToReturn",
-    "index0To1",
-    "tryTranslateClass",
-    "disableUpdateExpressionCallback",
-    "renameCatchErrorIfNeeded",
-    "disableClassCall",
-  ],
+  boolean: Object.keys(defaultOptions),
   alias: {
     // o1: "option1",
   },

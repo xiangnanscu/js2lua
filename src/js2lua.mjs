@@ -9,6 +9,7 @@ const ES_PAIRS = 'esPairs'
 const CASE_EXP_NAME = 'caseExp'
 const defaultOptions = {
   debug: false,
+  tagArrayExpression: true,
   importStatementHoisting: true,
   transformToString: true,
   transformString: true,
@@ -130,6 +131,7 @@ function findNodes(ast, callback, depth) {
 function findNodeByType(ast, type, depth) {
   return findNode(ast, (node) => node.type === type, depth)
 }
+const isAOPattern = (type) => type == 'ArrayPattern' || type == 'ObjectPattern'
 function getRestToken(params) {
   const restNode = findNodeByType(params, "RestElement")
   const restToken = restNode ? `local ${restNode.argument.name} = {...};` : ''
@@ -186,9 +188,18 @@ function ast2lua(ast, opts = {}) {
   const getDefaultTokens = (params) => params.filter(p => p.type == 'AssignmentPattern')
     .map(p => `if ${_ast2lua(p.left)} == nil then ${_ast2lua(p.left)} = ${_ast2lua(p.right)} end`).join(';')
   const getFunctionSnippet = (params) => {
+    const spreadParamTokens = []
+    for (const [i, p] of params.entries()) {
+      if (isAOPattern(p.type)) {
+        spreadParamTokens.push('local ' + _ast2lua(p)({ type: 'Identifier', name: `__tmp${i}` }))
+        params[i] = { type: 'Identifier', name: `__tmp${i}` }
+      }
+    }
     const restToken = getRestToken(params)
     const defaultTokens = getDefaultTokens(params)
-    return `${defaultTokens} ${restToken}`
+    return `${spreadParamTokens.join(';')}
+    ${defaultTokens}
+    ${restToken}`
   }
   const getSafeKey = (key, asMember) => {
     key = _ast2lua(key)
@@ -237,6 +248,48 @@ function ast2lua(ast, opts = {}) {
       end`
     }
   }
+  const getArrayPatternCps = (ast) => {
+    return (init) => {
+      const varibles = ast.elements.map(e => e.type == 'RestElement' ? _ast2lua(e.argument) : `${_ast2lua(e)}`)
+      if (!init) {
+        return varibles.join(', ')
+      }
+      const assignments = ast.elements.map((e, i) => {
+        if (e.type == 'RestElement') {
+          const restArg = _ast2lua(e.argument)
+          return `${restArg} = {};
+          for __i=${varibles.length}, #${TMP_VAR_NAME} do
+            ${restArg}[#${restArg}+1] = ${TMP_VAR_NAME}[__i]
+          end`
+        } else {
+          return `${_ast2lua(e)} = ${TMP_VAR_NAME}[${i + 1}]`
+        }
+      }).join(';')
+      return `${varibles.join(', ')};do local ${TMP_VAR_NAME} = ${_ast2lua(init)}; ${assignments} end`
+    }
+  }
+  const getObjectPatternCps = (ast) => {
+    return (init) => {
+      const varibles = ast.properties.map(p => p.type == 'RestElement' ? _ast2lua(p.argument) : `${_ast2lua(p.value)}`)
+      const assignments = ast.properties.map(p => {
+        if (p.type == 'RestElement') {
+          const restArg = _ast2lua(p.argument)
+          const restCond = ast.properties.slice(0, -1).map(p => `k ~= "${_ast2lua(p.key)}"`).join(' and ')
+          return `${restArg} = {};
+          for k, v in pairs(${TMP_VAR_NAME}) do
+            if ${restCond} then
+              ${restArg}[k] = v
+            end
+          end`
+        } else {
+          const key = _ast2lua(p.key)
+          const init = isKeyWords(key) ? `${TMP_VAR_NAME}["${key}"]` : `${TMP_VAR_NAME}.${key}`
+          return `${_ast2lua(p.value)} = ${init}`
+        }
+      }).join(';')
+      return `${varibles.join(', ')};do local ${TMP_VAR_NAME} = ${_ast2lua(init)}; ${assignments} end`
+    }
+  }
   const getCallExpressionToken = (ast) => {
     const calleeToken = _ast2lua(ast.callee)
     const argumentsToken = joinAst(ast.arguments)
@@ -270,6 +323,8 @@ function ast2lua(ast, opts = {}) {
       } else if (opts.transformJSONStringify && funcObject == 'JSON' && method == 'stringify') {
         needCjsonMoudle = true
         return ['cjson.encode', argumentsToken]
+      } else if (ast.callee.computed) {
+        return [`${funcObject}[${method}]`, `${funcObject}${ast.arguments.length > 0 ? ',' : ''}${argumentsToken}`]
       } else {
         return [`${funcObject}:${method}`, argumentsToken]
       }
@@ -334,16 +389,25 @@ function ast2lua(ast, opts = {}) {
   }
   const joinAst = (params, e = ',') => params.map(_ast2lua).join(e)
   function _ast2lua(ast) {
+    // p({ ast })
     switch (ast.type) {
       case "File":
         return ast.program.body.map(_ast2lua).join(';\n')
       case "VariableDeclaration": {
-        const declarePrefix = ast.ForOfStatement ? '' : 'local '
+        const declarePrefix = ast.noPrefix ? '' : 'local '
         return ast.declarations.map(_ast2lua).map(e => `${declarePrefix}${e}`).join(';\n')
       }
       case "VariableDeclarator": {
         if (!ast.init) {
-          return `${_ast2lua(ast.id)}`
+          // let a;
+          // for (const a of arr) {}
+          // for (const [a, b] of arr) {}
+          if (isAOPattern(ast.id.type)) {
+            return `${_ast2lua(ast.id)()}`
+          } else {
+            return `${_ast2lua(ast.id)}`
+          }
+
         } else if (ast.init.type == "AssignmentExpression") {
           const res = [`${_ast2lua(ast.id)} = ${_ast2lua(ast.init.left)}`]
           let _ast = ast.init
@@ -361,39 +425,9 @@ function ast2lua(ast, opts = {}) {
           }
           return res.join(';\nlocal ')
         } else if (ast.id.type == 'ArrayPattern') {
-          // return `${_ast2lua(ast.id).slice(1, -1)} = unpack(${_ast2lua(ast.init)})`
-          const varibles = ast.id.elements.map(e => e.type == 'RestElement' ? _ast2lua(e.argument) : `${_ast2lua(e)}`)
-          const assignments = ast.id.elements.map((e, i) => {
-            if (e.type == 'RestElement') {
-              const restArg = _ast2lua(e.argument)
-              return `${restArg} = {};
-              for i=${varibles.length}, #${TMP_VAR_NAME} do
-                ${restArg}[#${restArg}+1] = ${TMP_VAR_NAME}[i]
-              end`
-            } else {
-              return `${_ast2lua(e)} = ${TMP_VAR_NAME}[${i + 1}]`
-            }
-          }).join(';')
-          return `${varibles.join(', ')};do local ${TMP_VAR_NAME} = ${_ast2lua(ast.init)}; ${assignments} end`
+          return _ast2lua(ast.id)(ast.init)
         } else if (ast.id.type == 'ObjectPattern') {
-          const varibles = ast.id.properties.map(p => p.type == 'RestElement' ? _ast2lua(p.argument) : `${_ast2lua(p.value)}`)
-          const assignments = ast.id.properties.map(p => {
-            if (p.type == 'RestElement') {
-              const restArg = _ast2lua(p.argument)
-              const restCond = ast.id.properties.slice(0, -1).map(p => `k ~= "${_ast2lua(p.key)}"`).join(' and ')
-              return `${restArg} = {};
-              for k, v in pairs(${TMP_VAR_NAME}) do
-              if ${restCond} then
-                ${restArg}[k] = v
-              end
-              end`
-            } else {
-              const key = _ast2lua(p.key)
-              const init = isKeyWords(key) ? `${TMP_VAR_NAME}["${key}"]` : `${TMP_VAR_NAME}.${key}`
-              return `${_ast2lua(p.value)} = ${init}`
-            }
-          }).join(';')
-          return `${varibles.join(', ')};do local ${TMP_VAR_NAME} = ${_ast2lua(ast.init)}; ${assignments} end`
+          return _ast2lua(ast.id)(ast.init)
         } else {
           return `${_ast2lua(ast.id)} = ${_ast2lua(ast.init)}`
         }
@@ -418,8 +452,18 @@ function ast2lua(ast, opts = {}) {
         return `${ast.body.map(_ast2lua).join(';')}`
       }
       case "CallExpression": {
-        const [callee, args] = getCallExpressionToken(ast)
-        return `${callee}(${args})`
+        if (ast.callee.type == 'MemberExpression' && ast.callee.object.type !== 'Identifier') {
+          // [].exec(); /a/.exec();
+          const objectToken = _ast2lua(ast.callee.object)
+          ast.callee.object = { type: "Identifier", name: TMP_VAR_NAME }
+          return `(function()
+            local ${TMP_VAR_NAME} = ${objectToken}
+            return ${_ast2lua(ast)}
+          end)()`
+        } else {
+          const [callee, args] = getCallExpressionToken(ast)
+          return `${callee}(${args})`
+        }
       }
       // arshift = <function 1>,
       // band = <function 2>,
@@ -480,10 +524,13 @@ function ast2lua(ast, opts = {}) {
         return `${ast.value}`
       }
       case "ObjectExpression": {
-        if (findNodeByType(ast.properties, "SpreadElement")) {
+        if (findNodeByType(ast.properties, "SpreadElement", 1)) {
           return `(function() local ${TMP_VAR_NAME} = {}; ${ast.properties.map(e => {
             if (e.type == 'SpreadElement') {
               return `for k, v in pairs(${_ast2lua(e.argument)}) do ${TMP_VAR_NAME}[k] = v end`
+            } else if (e.type == 'ObjectMethod') {
+              e.asMember = true
+              return `${TMP_VAR_NAME}${_ast2lua(e)}`
             } else {
               return `${TMP_VAR_NAME}${getSafePropery(e, true)} = ${_ast2lua(e.value)}`
             }
@@ -497,8 +544,9 @@ function ast2lua(ast, opts = {}) {
         return `${getSafePropery(ast)} = ${_ast2lua(ast.value)}`
       }
       case "ArrayExpression": {
-        if (findNodeByType(ast.elements, "SpreadElement")) {
-          const iife = `(function() local ${TMP_VAR_NAME} = {}; ${ast.elements.map(e => {
+        const arrayTag = opts.tagArrayExpression ? 'array' : ''
+        if (findNodeByType(ast.elements, "SpreadElement", 1)) {
+          const iife = `(function() local ${TMP_VAR_NAME} = ${arrayTag}{}; ${ast.elements.map(e => {
             if (e.type == 'SpreadElement') {
               return `for _, v in ipairs(${_ast2lua(e.argument)}) do ${TMP_VAR_NAME}[#${TMP_VAR_NAME} + 1] = v end`
             } else {
@@ -507,16 +555,16 @@ function ast2lua(ast, opts = {}) {
           }).join(';')} return ${TMP_VAR_NAME} end)()`
           return iife
         } else {
-          return `{${joinAst(ast.elements)}}`
+          return `${arrayTag}{${joinAst(ast.elements)}}`
         }
       }
       case "ForOfStatement": {
         const continueLabel = getContinueLabelIfNeeded(ast)
-        ast.left.ForOfStatement = true
+        ast.left.noPrefix = true
         if (ast.left.declarations[0]?.id.type == 'ArrayPattern') {
           const pairsName = hasIdentifier(ast.body, ES_PAIRS) ? TMP_VAR_NAME : ES_PAIRS
           return `for _, ${pairsName} in ipairs(${_ast2lua(ast.right)}) do
-           local ${_ast2lua(ast.left).slice(1, -1)} = unpack(${pairsName});
+           local ${_ast2lua(ast.left)} = unpack(${pairsName});
            ${_ast2lua(ast.body)}
            ${continueLabel} end`
         } else {
@@ -527,7 +575,7 @@ function ast2lua(ast, opts = {}) {
       }
       case "ForInStatement": {
         const continueLabel = getContinueLabelIfNeeded(ast)
-        ast.left.ForOfStatement = true
+        ast.left.noPrefix = true
         return `for ${_ast2lua(ast.left)}, __ in pairs(${_ast2lua(ast.right)})
         do ${_ast2lua(ast.body)}
         ${continueLabel} end`
@@ -555,11 +603,12 @@ function ast2lua(ast, opts = {}) {
         }
       }
       case "ObjectMethod": {
-        const className = _ast2lua(ast.key)
+        // asMember in case of ObjectExpression like: {...t, foo(){}}
+        const funcName = getSafePropery(ast, ast.asMember)
         const funcPrefixToken = getFunctionSnippet(ast.params)
         const funcBody = _ast2lua(ast.body)
         const paramsToken = joinAst(ast.params)
-        return ` ${className} = function (${paramsToken}) ${funcPrefixToken} ${funcBody} end`
+        return ` ${funcName} = function (${paramsToken}) ${funcPrefixToken} ${funcBody} end`
       }
       case "FunctionDeclaration": {
         const className = _ast2lua(ast.id)
@@ -584,103 +633,99 @@ end`
         } else {
           return `local function ${className}(${paramsToken}) ${funcPrefixToken} ${funcBody} end`
         }
-
       }
       case "ReturnStatement": {
         return ast.argument ? `return ${_ast2lua(ast.argument)}` : `return;`
       }
       case "ArrayPattern": {
-        return `[${joinAst(ast.elements)}]`
+        return getArrayPatternCps(ast)
+      }
+      case "ObjectPattern": {
+        return getObjectPatternCps(ast)
       }
       case "ClassDeclaration": {
-        const superClassToken = ast.superClass ? `{${_ast2lua(ast.superClass)}}` : ``
-        if (!opts.disableClassCall) {
-          return `local ${_ast2lua(ast.id)} = class ${superClassToken} {
-            ${_ast2lua(ast.body)}}`
-        } else {
-          const className = _ast2lua(ast.id)
-          const classMethodsNodes = ast.body.body.filter(e => e.type === 'ClassMethod' && e.kind !== 'constructor')
-          ast.superClass && walkAst(classMethodsNodes, e => {
+        const className = _ast2lua(ast.id)
+        const classMethodsNodes = ast.body.body.filter(e => e.type === 'ClassMethod' && e.kind !== 'constructor')
+        ast.superClass && walkAst(classMethodsNodes, e => {
+          if (e.type === 'MemberExpression' && e.object.type == 'Super') {
+            e.object.superClass = ast.superClass
+          }
+        })
+        const classMethods = classMethodsNodes.map(b => {
+          const key = _ast2lua(b.key)
+          const funcPrefixToken = getFunctionSnippet(b.params)
+          const safeDeclare = isKeyWords(key) ? `${className}["${key}"] = function` : `function ${className}:${key}`
+          const firstParam = isKeyWords(key) ? getFirstParam(b.params) : ''
+          return `${safeDeclare}(${firstParam}${joinAst(b.params)})
+          ${funcPrefixToken}
+          ${_ast2lua(b.body)}
+          end`
+        }).join(';')
+        const ClassProperties = ast.body.body.filter(e => e.type === 'ClassProperty' && e.static).map(b => {
+          const key = _ast2lua(b.key)
+          if (isKeyWords(key)) {
+            return `${className}["${key}"] = ${_ast2lua(b.value)}`
+          } else {
+            return `${className}.${key} = ${_ast2lua(b.value)}`
+          }
+        }).join(';')
+        const InstanceProperties = ast.body.body.filter(e => e.type === 'ClassProperty' && !e.static).map(b => {
+          const key = _ast2lua(b.key)
+          if (isKeyWords(key)) {
+            return `["${key}"] = ${_ast2lua(b.value)}`
+          } else {
+            return `${key} = ${_ast2lua(b.value)}`
+          }
+        }).join(',')
+        const constructorNode = findNode(ast.body, e => e.kind == 'constructor')
+        const superClass__indexToken = ast.superClass ? `__index = ${_ast2lua(ast.superClass)},` : ''
+        if (constructorNode) {
+          // constructorNode exists
+          ast.superClass && walkAst(constructorNode.body, e => {
             if (e.type === 'MemberExpression' && e.object.type == 'Super') {
               e.object.superClass = ast.superClass
             }
+            if (e.type == 'CallExpression' && e.callee.type == 'Super') {
+              e.callee = {
+                type: 'MemberExpression',
+                object: { type: 'Super', superClass: ast.superClass },
+                property: { type: 'Identifier', name: 'constructor' }
+              }
+            }
           })
-          const classMethods = classMethodsNodes.map(b => {
-            const key = _ast2lua(b.key)
-            const funcPrefixToken = getFunctionSnippet(b.params)
-            const safeDeclare = isKeyWords(key) ? `${className}["${key}"] = function` : `function ${className}:${key}`
-            const firstParam = isKeyWords(key) ? getFirstParam(b.params) : ''
-            return `${safeDeclare}(${firstParam}${joinAst(b.params)})
+          const funcPrefixToken = getFunctionSnippet(constructorNode.params)
+          const funcBody = _ast2lua(constructorNode.body)
+          const paramsToken = joinAst(constructorNode.params)
+          const metaParamsToken = constructorNode.params.length > 0 ? ', ' + paramsToken : paramsToken
+          return `\
+          local ${className} = setmetatable({}, {
+            ${superClass__indexToken}
+            __call = function(t${metaParamsToken})
+              local self = t:new();
+              self:constructor(${paramsToken});
+              return self;
+            end})
+          ${className}.__index = ${className}
+          ${ClassProperties}
+          function ${className}.new(cls) return setmetatable({${InstanceProperties}}, cls) end
+          function ${className}:constructor(${paramsToken})
             ${funcPrefixToken}
-            ${_ast2lua(b.body)}
-            end`
-          }).join(';')
-          const ClassProperties = ast.body.body.filter(e => e.type === 'ClassProperty' && e.static).map(b => {
-            const key = _ast2lua(b.key)
-            if (isKeyWords(key)) {
-              return `${className}["${key}"] = ${_ast2lua(b.value)}`
-            } else {
-              return `${className}.${key} = ${_ast2lua(b.value)}`
-            }
-          }).join(';')
-          const InstanceProperties = ast.body.body.filter(e => e.type === 'ClassProperty' && !e.static).map(b => {
-            const key = _ast2lua(b.key)
-            if (isKeyWords(key)) {
-              return `["${key}"] = ${_ast2lua(b.value)}`
-            } else {
-              return `${key} = ${_ast2lua(b.value)}`
-            }
-          }).join(',')
-          const constructorNode = findNode(ast.body, e => e.kind == 'constructor')
-          const superClass__indexToken = ast.superClass ? `__index = ${_ast2lua(ast.superClass)},` : ''
-          if (constructorNode) {
-            // constructorNode exists
-            ast.superClass && walkAst(constructorNode.body, e => {
-              if (e.type === 'MemberExpression' && e.object.type == 'Super') {
-                e.object.superClass = ast.superClass
-              }
-              if (e.type == 'CallExpression' && e.callee.type == 'Super') {
-                e.callee = {
-                  type: 'MemberExpression',
-                  object: { type: 'Super', superClass: ast.superClass },
-                  property: { type: 'Identifier', name: 'constructor' }
-                }
-              }
-            })
-            const funcPrefixToken = getFunctionSnippet(constructorNode.params)
-            const funcBody = _ast2lua(constructorNode.body)
-            const paramsToken = joinAst(constructorNode.params)
-            const metaParamsToken = constructorNode.params.length > 0 ? ', ' + paramsToken : paramsToken
-            return `\
-            local ${className} = setmetatable({}, {
-              ${superClass__indexToken}
-              __call = function(t${metaParamsToken})
-                local self = t:new();
-                self:constructor(${paramsToken});
-                return self;
-              end})
-            ${className}.__index = ${className}
-            ${ClassProperties}
-            function ${className}.new(cls) return setmetatable({${InstanceProperties}}, cls) end
-            function ${className}:constructor(${paramsToken})
-              ${funcPrefixToken}
-              ${funcBody}
-            end
-            ${classMethods}`
-          } else {
-            return `\
-            local ${className} = setmetatable({}, {
-              ${superClass__indexToken}
-              __call = function(t)
-                local self = t:new();
-                self:constructor();
-                return self;
-              end})
-            ${className}.__index = ${className};${ClassProperties};
-            function ${className}.new(cls) return setmetatable({${InstanceProperties}}, cls) end
-            function ${className}:constructor() end
-            ${classMethods}`
-          }
+            ${funcBody}
+          end
+          ${classMethods}`
+        } else {
+          return `\
+          local ${className} = setmetatable({}, {
+            ${superClass__indexToken}
+            __call = function(t)
+              local self = t:new();
+              self:constructor();
+              return self;
+            end})
+          ${className}.__index = ${className};${ClassProperties};
+          function ${className}.new(cls) return setmetatable({${InstanceProperties}}, cls) end
+          function ${className}:constructor() end
+          ${classMethods}`
         }
       }
       case "ClassBody": {
@@ -791,8 +836,15 @@ end`
           local ${left} = ${_ast2lua(ast.right.left)}`
         } else {
           const op = ast.operator
-          const left = _ast2lua(ast.left)
-          const right = _ast2lua(ast.right)
+          let left, right;
+          if (isAOPattern(ast.left.type)) {
+            // [a, b] = arr
+            left = _ast2lua(ast.left)()
+            right = `unpack(${_ast2lua(ast.right)})`
+          } else {
+            left = _ast2lua(ast.left)
+            right = _ast2lua(ast.right)
+          }
           if (op == '+=') {
             return `${left} = ${left} + ${right}`
           } else if (op == '-=') {
@@ -827,7 +879,7 @@ end`
             end
           end)()`
           } else {
-            return `${_ast2lua(ast.left)} ${op} ${_ast2lua(ast.right)}`
+            return `${left} ${op} ${right}`
           }
         }
       }
@@ -987,6 +1039,9 @@ end`
           return token
         }
       }
+      case "AwaitExpression": {
+        return `${_ast2lua(ast.argument)}`
+      }
       default:
         opts.debug && p('unknow node', ast.type, ast)
         return ""
@@ -1024,6 +1079,7 @@ function js2lua(s, opts) {
   return formatText(luacode)
 }
 export {
+  defaultOptions,
   js2lua,
   js2ast
 }

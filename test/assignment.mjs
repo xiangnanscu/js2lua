@@ -1,3 +1,5 @@
+let u, v;
+[u, v] = [1, 2]
 const foo = 1
 const object = { o1: 'o1', o2: 'o2' }, array = [1, 2]
 // eslint-disable-next-line no-undef

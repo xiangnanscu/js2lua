@@ -75,6 +75,8 @@ js2lua(`let a = 1`, {importStatementHoisting:true})
 ## assignment
 ### js
 ```js
+let u, v;
+[u, v] = [1, 2]
 const foo = 1
 const object = { o1: 'o1', o2: 'o2' }, array = [1, 2]
 // eslint-disable-next-line no-undef
@@ -85,9 +87,12 @@ const e = 1, f = 'a', { o1, o2: o22 } = object, [a1, a2] = array
 ```
 ### lua
 ```lua
+local u
+local v
+u, v = unpack(array {1, 2})
 local foo = 1
 local object = {o1 = "o1", o2 = "o2"}
-local array = {1, 2}
+local array = array {1, 2}
 local h3 = "title"
 local h2 = h3
 local h1 = h2
@@ -105,12 +110,12 @@ do
 end
 local x, y, others
 do
-    local __tmp = {1, 2, 3, 4}
+    local __tmp = array {1, 2, 3, 4}
     x = __tmp[1]
     y = __tmp[2]
     others = {}
-    for i = 3, #__tmp do
-        others[#others + 1] = __tmp[i]
+    for __i = 3, #__tmp do
+        others[#others + 1] = __tmp[__i]
     end
 end
 local e = 1
@@ -198,6 +203,7 @@ function BasePosition:say(word)
     if word == nil then
         word = "base haha"
     end
+
     print(string.format([=[Base say: %s]=], word))
 end
 local Position =
@@ -225,7 +231,10 @@ function Position:constructor(name, x, y, ...)
         y = 2
     end
     local numbers = {...}
-    BasePosition.constructor(self)
+    (function()
+        local __tmp = BasePosition
+        return __tmp:constructor()
+    end)()
     Position.insCount = Position.insCount + 1
     self.name = name
     self.x = x
@@ -245,7 +254,11 @@ function Position:say(word)
     if word == nil then
         word = "haha"
     end
-    BasePosition.say(self, word)
+
+    (function()
+        local __tmp = BasePosition
+        return __tmp:say(word)
+    end)()
     print(string.format([=[%s say: %s, first number is %s]=], self.name, word, self.numbers[1]))
 end
 local p1 = Position("p1", 1, 2, 3, 4)
@@ -255,9 +268,15 @@ Position:echoInsCount()
 p1:echoPosition()
 p2:echoPosition()
 p1:say("hello")
-p1.say(p2)
+(function()
+    local __tmp = p1.say
+    return __tmp(p2)
+end)()
 p1:echoNumbersLength("a", "b", "c")
-p1.echoNumbersLength(p2, unpack({1, 2}))
+(function()
+    local __tmp = p1.echoNumbersLength
+    return __tmp(p2, unpack(array {1, 2}))
+end)()
 
 ```
 ## export
@@ -302,8 +321,15 @@ return _M
 ### js
 ```js
 const foo = { bar() { } }
+const bar = 'bar'
 // translate foo.bar() => foo:bar()
 foo.bar()
+foo[bar]()
+foo[1]()
+foo['bar']()
+foo['bar' || 'foo']();
+[].concat([1, 2, 3]);
+/a/.exec();
 foo.map(e => { return e.name })
 foo.map(e => e.name)
 foo.map(function (e) { return e.name })
@@ -329,9 +355,24 @@ Echo.prototype.echoY = function () {
 ```
 ### lua
 ```lua
-local foo = {bar = function()
-    end}
+local foo = {
+    bar = function()
+    end
+}
+local bar = "bar"
 foo:bar()
+foo[bar](foo)
+foo[1](foo)
+foo["bar"](foo)
+foo["bar" or "foo"](foo)
+(function()
+    local __tmp = array {}
+    return __tmp:concat(array {1, 2, 3})
+end)()
+(function()
+    local __tmp = [=[a]=]
+    return __tmp:exec()
+end)()
 foo:map(
     function(e)
         return e.name
@@ -356,7 +397,7 @@ local func1 = function(x, y, ...)
     end
     local args = {...}
     return (function()
-        local __tmp = {}
+        local __tmp = array {}
         __tmp[#__tmp + 1] = x
         __tmp[#__tmp + 1] = y
         for _, v in ipairs(args) do
@@ -367,7 +408,7 @@ local func1 = function(x, y, ...)
 end
 local function func2(x, y, ...)
     if x == nil then
-        x = {}
+        x = array {}
     end
     if y == nil then
         y = {}
@@ -505,7 +546,7 @@ const i = a[0]
 ```
 ### lua
 ```lua
-local a = {}
+local a = array {}
 local i = a[1]
 
 ```
@@ -529,7 +570,7 @@ end
 Obj["end"] = function(self)
 end
 print(Obj["end"])
-local arr = {true, false}
+local arr = array {true, false}
 
 ```
 ## loop
@@ -563,7 +604,7 @@ while (1) {
 ```
 ### lua
 ```lua
-local arr = {}
+local arr = array {}
 do
     local i = 0
     while i <= #arr do
@@ -609,6 +650,12 @@ const d1 = {
 const d2 = { end: 1, end1: 2 }
 const d3 = { end: 1, end1: 2, ...d2, and: 3 }
 const a = { ["true"]: 1, [true]: 2 }
+const d = {
+  ...d3,
+  foo: 1,
+  end() { },
+  end2() { },
+};
 
 // local a = { ["true"] = 1, [true] = 2 }
 // print(a['true'], a[true])
@@ -629,6 +676,18 @@ local d3 = (function()
     return __tmp
 end)()
 local a = {["true"] = 1, [true] = 2}
+local d = (function()
+    local __tmp = {}
+    for k, v in pairs(d3) do
+        __tmp[k] = v
+    end
+    __tmp.foo = 1
+    __tmp["end"] = function()
+    end
+    __tmp.end2 = function()
+    end
+    return __tmp
+end)()
 
 ```
 ## operator
@@ -708,7 +767,7 @@ end)()
     elseif type(__tmp) ~= "function" then
         error("obj.func is not a function")
     else
-        return obj:func(1, unpack({1, 2, 3}))
+        return obj:func(1, unpack(array {1, 2, 3}))
     end
 end)()
 (function()
@@ -792,7 +851,7 @@ d.n ??= 100;
 local a = 1
 local b = "foo"
 local obj = {}
-local args = {}
+local args = array {}
 local m = (function()
     if a == nil then
         return nil
@@ -895,12 +954,12 @@ const { x: k1, y: k2, ...k } = { ...d, foo: 'bar' }
 ```
 ### lua
 ```lua
-local a = {1, 2, 3}
+local a = array {1, 2, 3}
 local d = {x = 1, y = 2, z = 3}
 local v1, v2, v
 do
     local __tmp = (function()
-        local __tmp = {}
+        local __tmp = array {}
         __tmp[#__tmp + 1] = 4
         __tmp[#__tmp + 1] = 5
         for _, v in ipairs(a) do
@@ -911,8 +970,8 @@ do
     v1 = __tmp[1]
     v2 = __tmp[2]
     v = {}
-    for i = 3, #__tmp do
-        v[#v + 1] = __tmp[i]
+    for __i = 3, #__tmp do
+        v[#v + 1] = __tmp[__i]
     end
 end
 local k1, k2, k
@@ -1053,7 +1112,10 @@ local cjson = require("cjson")
 
 local a = {b = ""}
 tostring(1)
-tostring(a.b)
+(function()
+    local __tmp = a.b
+    return tostring(__tmp)
+end)()
 cjson.encode({})
 cjson.decode("{}")
 tonumber("2")

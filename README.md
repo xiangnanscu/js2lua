@@ -231,10 +231,7 @@ function Position:constructor(name, x, y, ...)
         y = 2
     end
     local numbers = {...}
-    (function()
-        local __tmp = BasePosition
-        return __tmp:constructor()
-    end)()
+    BasePosition.constructor(self)
     Position.insCount = Position.insCount + 1
     self.name = name
     self.x = x
@@ -255,10 +252,7 @@ function Position:say(word)
         word = "haha"
     end
 
-    (function()
-        local __tmp = BasePosition
-        return __tmp:say(word)
-    end)()
+    BasePosition.say(self, word)
     print(string.format([=[%s say: %s, first number is %s]=], self.name, word, self.numbers[1]))
 end
 local p1 = Position("p1", 1, 2, 3, 4)

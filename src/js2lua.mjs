@@ -452,7 +452,7 @@ function ast2lua(ast, opts = {}) {
         return `${ast.body.map(_ast2lua).join(';')}`
       }
       case "CallExpression": {
-        if (ast.callee.type == 'MemberExpression' && ast.callee.object.type !== 'Identifier') {
+        if (ast.callee.type == 'MemberExpression' && ast.callee.object.type !== 'Identifier' && ast.callee.object.type !== 'Super') {
           // [].exec(); /a/.exec();
           const objectToken = _ast2lua(ast.callee.object)
           ast.callee.object = { type: "Identifier", name: TMP_VAR_NAME }

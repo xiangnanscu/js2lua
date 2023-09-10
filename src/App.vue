@@ -6,7 +6,7 @@ import packages from "../package.json";
 
 const showjsAst = ref(false);
 const optionNamesDict = {
-  debug: true,
+  debug: false,
   tagArrayExpression: true,
   importStatementHoisting: true,
   transformToString: true,
@@ -60,19 +60,22 @@ const selectNames = ref(
     .filter(([k, v]) => v)
     .map(([k, v]) => k)
 );
-const selectOptions = computed(() => Object.fromEntries(selectNames.value.map((e) => [e, true])));
+const selectOptions = computed(() =>
+  Object.fromEntries(optionNames.map((e) => [e, selectNames.value.includes(e) ? true : false]))
+);
 const files = import.meta.glob("../test/*.mjs", { as: "raw", eager: false });
 for (const [filePath, jscode] of Object.entries(files)) {
   files[filePath] = ref(jscode);
 }
 const tableHtmls = reactive([]);
-for (const filePath in files) {
-  const jscode = files[filePath];
-  const luacode = computed(() => js2lua(jscode.value, selectOptions.value));
-  const name = filePath.match(/\/(\w+)\.mjs$/)[1];
-  tableHtmls.push({ name, jscode, luacode });
+if (process.env.NODE_ENV !== "development") {
+  for (const filePath in files) {
+    const jscode = files[filePath];
+    const luacode = computed(() => js2lua(jscode.value, selectOptions.value));
+    const name = filePath.match(/\/(\w+)\.mjs$/)[1];
+    tableHtmls.push({ name, jscode, luacode });
+  }
 }
-if (process.env.NODE_ENV === "development") tableHtmls.splice(0, tableHtmls.length);
 const luacode = computed(() => {
   return js2lua(jscode.value, selectOptions.value);
 });

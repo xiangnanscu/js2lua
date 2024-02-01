@@ -51,6 +51,9 @@ js2lua --debug foo.js
 import { js2lua } from 'js2lua';
 js2lua(`let a = 1`, {importStatementHoisting:true})
 ```
+## see also
+[lua2js](https://xiangnanscu.github.io/lua2js/) transform lua to js
+
 # Features
 * [assignment](#assignment)
 * [class](#class)

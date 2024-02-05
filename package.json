@@ -16,7 +16,7 @@
   "bugs": {
     "url": "https://github.com/xiangnanscu/js2lua/issues"
   },
-  "homepage": "https://xnscu.com/js2lua/",
+  "homepage": "https://github.xnscu.com/js2lua/",
   "scripts": {
     "dev": "vite",
     "build": "vite build",

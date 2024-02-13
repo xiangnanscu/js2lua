@@ -36,7 +36,8 @@ jobs:
           fi
       - name: Publish to npm
         if: steps.version_changed.outputs.changed == 'true'
-        run: npm i
-        run: npm publish
+        run: |
+          npm i
+          npm publish --access public
         env:
           NODE_AUTH_TOKEN: ${{secrets.GITHUB_TOKEN}}

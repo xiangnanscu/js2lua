@@ -1,6 +1,6 @@
 {
   "name": "@xiangnanscu/js2lua",
-  "version": "0.30.0",
+  "version": "0.31.0",
   "type": "module",
   "description": "Writing LuaJIT with the expressiveness of JavaScript.",
   "main": "src/js2lua.mjs",

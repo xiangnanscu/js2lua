@@ -2,7 +2,7 @@
   "name": "@xiangnanscu/js2lua",
   "version": "0.24.0",
   "type": "module",
-  "description": "Writing LuaJIT with the expressiveness of JavaScript!",
+  "description": "Writing LuaJIT with the expressiveness of JavaScript",
   "main": "src/js2lua.mjs",
   "bin": {
     "js2lua": "bin/js2lua.js"

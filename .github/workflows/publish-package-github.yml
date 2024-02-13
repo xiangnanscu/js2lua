@@ -29,10 +29,10 @@ jobs:
           VERSION_NEW=$(jq -r .version package.json)
           if [ "$VERSION_OLD" != "$VERSION_NEW" ]; then
             echo "Version changed from $VERSION_OLD to $VERSION_NEW"
-            echo "{changed}={true}" >> $GITHUB_OUTPUT
+            echo "changed=true" >> $GITHUB_OUTPUT
           else
             echo "Version did not change"
-            echo "{changed}={false}" >> $GITHUB_OUTPUT
+            echo "changed=false" >> $GITHUB_OUTPUT
           fi
       - name: Publish to github
         if: steps.version_changed.outputs.changed == 'true'

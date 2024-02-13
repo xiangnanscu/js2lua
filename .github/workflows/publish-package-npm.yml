@@ -7,8 +7,11 @@ on:
     paths: "package.json"
 
 jobs:
-  build:
+  publish-npm:
     runs-on: ubuntu-latest
+    permissions:
+      packages: write
+      contents: read
     steps:
       - uses: actions/checkout@v4
         with:
@@ -17,11 +20,6 @@ jobs:
         with:
           node-version-file: ".nvmrc"
           registry-url: https://registry.npmjs.org/
-
-  publish-npm:
-    needs: build
-    runs-on: ubuntu-latest
-    steps:
       - name: Install jq
         run: sudo apt-get install jq
       - name: Check if version changed

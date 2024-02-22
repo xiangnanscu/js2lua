@@ -1,30 +1,10 @@
 <script setup>
 import { ref, computed, watch, reactive } from "vue";
-import { js2lua as _js2lua, js2ast as _js2ast } from "./js2lua.mjs";
+import { js2lua as _js2lua, js2ast as _js2ast, defaultOptions as  optionNamesDict} from "./js2lua.mjs";
 import fs from "file-saver";
 import packages from "../package.json";
 
 const showjsAst = ref(false);
-const optionNamesDict = {
-  debug: false,
-  tagArrayExpression: true,
-  importStatementHoisting: true,
-  transformToString: true,
-  transformString: true,
-  transformJSONStringify: true,
-  transformJSONParse: true,
-  transformParseFloat: true,
-  transformParseInt: true,
-  transformNumber: true,
-  transformIsArray: true,
-  transformConsoleLog: true,
-  moduleExportsToReturn: true,
-  index0To1: true,
-  tryTranslateClass: true,
-  disableUpdateExpressionCallback: true,
-  renameCatchErrorIfNeeded: true,
-  disableClassCall: true,
-};
 function js2lua(js, opts) {
   try {
     return _js2lua(js, opts);

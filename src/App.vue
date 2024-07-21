@@ -5,6 +5,7 @@ import fs from "file-saver";
 import packages from "../package.json";
 
 const showjsAst = ref(false);
+const showJscode = ref(false)
 function js2lua(js, opts) {
   try {
     return _js2lua(js, opts);
@@ -113,6 +114,10 @@ watch(checkAll, (checkAll) => {
       <div class="col-2">
         <div :class="{ 'error-wrapper': error }">
           <div class="form-check">
+            <input class="form-check-input" type="checkbox" id="label-all" v-model="showJscode" />
+            <label class="form-check-label" for="label-all" style="color: red"> show Js code </label>
+          </div>
+          <div class="form-check">
             <input class="form-check-input" type="checkbox" id="label-all" v-model="checkAll" />
             <label class="form-check-label" for="label-all" style="color: red"> all </label>
           </div>
@@ -128,7 +133,7 @@ watch(checkAll, (checkAll) => {
         <button @click="jscode = ''">clear textarea</button>
         <textarea rows="10" style="height: 500px" class="form-control" v-model="jscode"></textarea>
       </div>
-      <div class="col">
+      <div v-if="showJscode" class="col">
         <div class="form-check-inline">
           <label class="form-check-label">
             <input @input="showjsAst = !showjsAst" :value="showjsAst" type="checkbox" class="form-check-input" />show js

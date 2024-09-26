@@ -11,6 +11,7 @@ const defaultOptions = {
   debug: false,
   tagArrayExpression: true,
   importStatementHoisting: true,
+  transform$SymbolToDollar: true,
   transformToString: true,
   transformString: true,
   transformJSONStringify: true,
@@ -475,6 +476,8 @@ function ast2lua(ast, opts = {}) {
         const id = ast.name;
         if (id == "undefined") {
           return "nil";
+        } else if (id.startsWith("$")) {
+          return opts.transform$SymbolToDollar ? id.replace("$", "_DOLLAR_") : id;
         }
         return id;
       }

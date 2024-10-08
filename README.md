@@ -1,20 +1,28 @@
 # js2lua
+
 [js2lua](https://xiangnanscu.github.io/js2lua/)
 Writing LuaJIT with the expressiveness of JavaScript.
+
 # Install
+
 ```sh
 npm install -g @xiangnanscu/js2lua
 ```
+
 # Usage
+
 ## command
+
 Concat one or more js files and transform them to one lua string:
+
 ```sh
 js2lua [options] file1, file2, ...
 ```
+
 where options are:
+
 ```js
 const defaultOptions = {
-  debug: false,
   tagArrayExpression: true,
   importStatementHoisting: true,
   transform$SymbolToDollar: true,
@@ -35,29 +43,42 @@ const defaultOptions = {
   disableClassCall: true,
 };
 ```
+
 ### examples
+
 Basic:
+
 ```sh
 js2lua foo.js > foo.lua
 ```
+
 To disable a feature `--no-[option]`:
+
 ```sh
 js2lua --no-transformToString foo.js
 ```
+
 To enable a feature `--[option]`:
+
 ```sh
 js2lua --debug foo.js
 ```
+
 ## api
+
 ```js
-import { js2lua } from 'js2lua';
-js2lua(`let a = 1`, {importStatementHoisting:true})
+import { js2lua } from "js2lua";
+js2lua(`let a = 1`, { importStatementHoisting: true });
 ```
+
 ## see also
-[lua2js](https://xiangnanscu.github.io/lua2js/) transform lua to js
-[lua-resty-array](https://github.com/xiangnanscu/lua-resty-array) lua version of JS Array (feature tagArrayExpression)
+
+- [lua2js](https://xiangnanscu.github.io/lua2js/) transform lua to js
+
+- [lua-resty-array](https://github.com/xiangnanscu/lua-resty-array) lua version of JS Array (feature tagArrayExpression)
 
 # Features
+
 * [assignment](#assignment)
 * [class](#class)
 * [export](#export)

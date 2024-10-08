@@ -15,7 +15,9 @@ where options are:
 ```js
 const defaultOptions = {
   debug: false,
+  tagArrayExpression: true,
   importStatementHoisting: true,
+  transform$SymbolToDollar: true,
   transformToString: true,
   transformString: true,
   transformJSONStringify: true,
@@ -53,6 +55,7 @@ js2lua(`let a = 1`, {importStatementHoisting:true})
 ```
 ## see also
 [lua2js](https://xiangnanscu.github.io/lua2js/) transform lua to js
+[lua-resty-array](https://github.com/xiangnanscu/lua-resty-array) lua version of JS Array (feature tagArrayExpression)
 
 # Features
 * [assignment](#assignment)
@@ -265,15 +268,9 @@ Position:echoInsCount()
 p1:echoPosition()
 p2:echoPosition()
 p1:say("hello")
-(function()
-    local __tmp = p1.say
-    return __tmp(p2)
-end)()
+p1.say(p2)
 p1:echoNumbersLength("a", "b", "c")
-(function()
-    local __tmp = p1.echoNumbersLength
-    return __tmp(p2, unpack(array {1, 2}))
-end)()
+p1.echoNumbersLength(p2, unpack(array {1, 2}))
 
 ```
 ## export
@@ -1109,10 +1106,7 @@ local cjson = require("cjson")
 
 local a = {b = ""}
 tostring(1)
-(function()
-    local __tmp = a.b
-    return tostring(__tmp)
-end)()
+tostring(a.b)
 cjson.encode({})
 cjson.decode("{}")
 tonumber("2")

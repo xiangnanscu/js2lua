@@ -498,6 +498,7 @@ function ast2lua(ast, opts = {}) {
       case "CallExpression": {
         if (
           ast.callee.type == "MemberExpression" &&
+          ast.callee.object.type !== "MemberExpression" &&
           ast.callee.object.type !== "Identifier" &&
           ast.callee.object.type !== "Super"
         ) {

@@ -7,7 +7,9 @@ const folderPath = './test';
 const markdown = fs.readFileSync('./README.template.md', 'utf8');
 const files = fs.readdirSync(folderPath);
 const opts = {
+  tagArrayExpression: true,
   importStatementHoisting: true,
+  transform$SymbolToDollar: true,
   transformToString: true,
   transformString: true,
   transformJSONStringify: true,

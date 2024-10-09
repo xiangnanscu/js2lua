@@ -88,6 +88,7 @@ js2lua(`let a = 1`, { importStatementHoisting: true });
 * [index0To1](#index0To1)
 * [keywords](#keywords)
 * [loop](#loop)
+* [multipleReturnForLuaFunction](#multipleReturnForLuaFunction)
 * [object](#object)
 * [operator](#operator)
 * [optionalNullish](#optionalNullish)
@@ -659,6 +660,39 @@ while 1 do
 end
 do
     while 1 do
+    end
+end
+
+```
+## multipleReturnForLuaFunction
+### js
+```js
+let [ok, res] = pcall(foo)
+let [ok2, res2] = xpcall(foo)
+let [e1, e2] = unpack(bar)
+// comparision
+let [ok3, res3] = pcall2(foo)
+let [ok4, ...res4] = xpcall(foo)
+
+```
+### lua
+```lua
+local ok, res = pcall(foo)
+local ok2, res2 = xpcall(foo)
+local e1, e2 = unpack(bar)
+local ok3, res3
+do
+    local __tmp = pcall2(foo)
+    ok3 = __tmp[1]
+    res3 = __tmp[2]
+end
+local ok4, res4
+do
+    local __tmp = xpcall(foo)
+    ok4 = __tmp[1]
+    res4 = {}
+    for __i = 2, #__tmp do
+        res4[#res4 + 1] = __tmp[__i]
     end
 end
 

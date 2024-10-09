@@ -50,7 +50,7 @@ const luacode = computed(() => {
   return js2lua(jscode.value, selectOptions.value);
 });
 
-const jsast = computed(() => js2ast(jscode.value, selectOptions.value));
+const jsast = computed(() => js2ast(jscode.value, selectOptions.value)?.program.body);
 function copylua() {
   CopyToClipboard("luacode");
 }

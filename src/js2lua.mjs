@@ -127,6 +127,37 @@ function hasIdentifier(ast, name, depth) {
   );
   return find;
 }
+const multiReturnFunctions = ['pcall', 'xpcall', 'unpack'];
+function isMultiReturnAssignment(ast) {
+  // 检查是否为赋值语句
+  if (ast.type !== 'VariableDeclaration' || ast.declarations.length !== 1) {
+    return false;
+  }
+
+  const declaration = ast.declarations[0];
+
+  // 检查左边是否为数组解构形式
+  if (declaration.id.type !== 'ArrayPattern') {
+    return false;
+  }
+
+  // 检查数组解构的元素是否全部为标识符
+  if (!declaration.id.elements.every(element => element && element.type === 'Identifier')) {
+    return false;
+  }
+
+  // 检查右边是否为函数调用
+  if (declaration.init?.type !== 'CallExpression') {
+    return false;
+  }
+
+  // 检查函数名是否为Lua的多返回值内置函数
+
+  const calleeName = declaration.init.callee.name;
+
+  return multiReturnFunctions.includes(calleeName);
+}
+
 function renameThisToCls(ast) {
   walkAst(ast, (node) => {
     if (node.type == "ThisExpression") {
@@ -441,6 +472,10 @@ function ast2lua(ast, opts = {}) {
       case "File":
         return joinAst(ast.program.body, ";\n");
       case "VariableDeclaration": {
+        if (isMultiReturnAssignment(ast)) {
+          const declare = ast.declarations[0]
+          return `local ${declare.id.elements.map(_ast2lua).join(", ")} = ${_ast2lua(declare.init)}`;
+        }
         const declarePrefix = ast.noPrefix ? "" : "local ";
         return ast.declarations
           .map(_ast2lua)

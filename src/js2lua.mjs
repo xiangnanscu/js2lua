@@ -577,6 +577,37 @@ function ast2lua(ast, opts = {}) {
       // tohex = <function 12>
       case "BinaryExpression": {
         const op = logicMap[ast.operator] || ast.operator;
+        // first handle addition operator
+        const isAdditionNode = (node) => node.type === "BinaryExpression" && node.operator === "+";
+        const containsString = (node) => {
+          if (node.type === "StringLiteral") return true;
+          if (isAdditionNode(node)) {
+            return containsString(node.left) || containsString(node.right);
+          }
+          return false;
+        };
+        const processAddition = (node) => {
+          if (!isAdditionNode(node)) {
+            return _ast2lua(node);
+          }
+          if (node.stringConcat) {
+            return `${_ast2lua(node.left)} .. ${_ast2lua(node.right)}`;
+          }
+          if (containsString(node.left) || containsString(node.right)) {
+            walkAst(node, (e) => {
+              if (isAdditionNode(e)) {
+                e.stringConcat = true;
+              }
+            });
+            return `${_ast2lua(node.left)} .. ${_ast2lua(node.right)}`;
+          } else {
+            return `${_ast2lua(node.left)} + ${_ast2lua(node.right)}`;
+          }
+        };
+        // then handle other operators
+        if (ast.operator === "+") {
+          return processAddition(ast);
+        }
         const left = _ast2lua(ast.left);
         const right = _ast2lua(ast.right);
         if (ast.operator == "instanceof") {
@@ -599,7 +630,7 @@ function ast2lua(ast, opts = {}) {
         } else if (ast.operator == "**") {
           return `math.pow(${left}, ${right})`;
         } else {
-          return `${left} ${op} ${_ast2lua(ast.right)}`;
+          return `${left} ${op} ${right}`;
         }
       }
       case "UnaryExpression": {

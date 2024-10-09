@@ -93,6 +93,7 @@ js2lua(`let a = 1`, { importStatementHoisting: true });
 * [operator](#operator)
 * [optionalNullish](#optionalNullish)
 * [others](#others)
+* [smartAddition](#smartAddition)
 * [spread](#spread)
 * [stringTemplate](#stringTemplate)
 * [switch](#switch)
@@ -1004,6 +1005,29 @@ local constraints = (function()
     __tmp[httpMethodStrategy.name] = route.method
     return __tmp
 end)()
+
+```
+## smartAddition
+### js
+```js
+const s1 = b + c
+const s2 = b + 'c'
+const s3 = 'c' + b
+const s4 = a + b + 'c'
+const s7 = 'a' + b + c
+const s5 = a + b + 'c' + d + f
+const s6 = a + b + c + d + f
+
+```
+### lua
+```lua
+local s1 = b + c
+local s2 = b .. "c"
+local s3 = "c" .. b
+local s4 = a .. b .. "c"
+local s7 = "a" .. b .. c
+local s5 = a .. b .. "c" .. d .. f
+local s6 = a + b + c + d + f
 
 ```
 ## spread

@@ -1,30 +1,14 @@
 import fs from "fs";
 import path from "path";
-import { js2lua, js2ast } from "./src/js2lua.mjs";
+import { js2lua, js2ast ,defaultOptions} from "./src/js2lua.mjs";
 
 const folderPath = "./test";
 
 const markdown = fs.readFileSync("./README.template.md", "utf8");
 const files = fs.readdirSync(folderPath);
 const opts = {
-  tagArrayExpression: true,
-  importStatementHoisting: true,
-  transform$SymbolToDollar: true,
-  transformToString: true,
-  transformString: true,
-  transformJSONStringify: true,
-  transformJSONParse: true,
-  transformParseFloat: true,
-  transformParseInt: true,
-  transformNumber: true,
-  transformIsArray: true,
-  transformConsoleLog: true,
-  moduleExportsToReturn: true,
-  index0To1: true,
-  tryTranslateClass: true,
-  disableUpdateExpressionCallback: true,
-  renameCatchErrorIfNeeded: true,
-  disableClassCall: true,
+  ...defaultOptions,
+  debug: false,
 };
 const res = [];
 for (const file of files) {

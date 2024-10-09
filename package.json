@@ -25,8 +25,9 @@
     "push": "yarn commit",
     "postpush": "while true; do git push && { echo 'Git push succeeded'; break; } || echo 'Git push failed, retrying in 1 seconds'; sleep 1; done",
     "pull": "while true; do git pull && { echo 'Git pull succeeded'; break; } || echo 'Git pull failed, retrying in 1 seconds'; sleep 1; done",
-    "prerelease": "npm --no-git-tag-version version minor && node ./makeDocs.js",
-    "release": "node makeDocs.js && push_option=release npm run push",
+    "prerelease": "npm --no-git-tag-version version minor",
+    "docs": "node makeDocs.js",
+    "release": "npm run docs && push_option=release npm run push",
     "rc": "yarn release",
     "replace": "find .  -type d \\( -name .git -o -name node_modules \\) -prune -o  -type f  -exec  sed -i s/js2lua/field/g {} \\;",
     "test": "node test.mjs"

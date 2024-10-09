@@ -221,6 +221,7 @@ local BasePosition =
     }
 )
 BasePosition.__index = BasePosition
+
 function BasePosition.new(cls)
     return setmetatable({}, cls)
 end
@@ -591,30 +592,31 @@ local arr = array {true, false}
 ## loop
 ### js
 ```js
-const arr = []
+const arr = [];
 for (let i = 0; i <= arr.length; i++) {
-  print(i)
+  print(i);
 }
-
+for (i = 0; i < 10; i = i + 2) {
+  print(1);
+}
 for (const e of arr) {
-  print(e)
-  break
+  print(e);
+  break;
 }
 for (const [a, b] of arr) {
   if (b === 1) {
-    continue
+    continue;
   }
-  print(a)
+  print(a);
 }
 
 for (const key in arr) {
-  print(key)
+  print(key);
 }
 
 while (1) {
-  print('a')
+  print("a");
 }
-
 
 ```
 ### lua
@@ -624,10 +626,16 @@ do
     local i = 0
     while i <= #arr do
         print(i)
-        (function()
-            i = i + 1
-            return i
-        end)()
+
+        i = i + 1
+    end
+end
+do
+    i = 0
+    while i < 10 do
+        print(1)
+
+        i = i + 2
     end
 end
 for _, e in ipairs(arr) do

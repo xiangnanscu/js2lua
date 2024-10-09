@@ -427,17 +427,20 @@ function ast2lua(ast, opts = {}) {
     return [token, chainKey];
   };
   const joinAst = (params, e = ",") => {
-    return params.map(_ast2lua).join(e);
+    return params
+      .map(_ast2lua)
+      .filter((e) => e)
+      .join(e);
   };
   function _ast2lua(ast) {
-    // p({ ast })
     switch (ast.type) {
       case "File":
-        return ast.program.body.map(_ast2lua).join(";\n");
+        return joinAst(ast.program.body, ";\n");
       case "VariableDeclaration": {
         const declarePrefix = ast.noPrefix ? "" : "local ";
         return ast.declarations
           .map(_ast2lua)
+          .filter((e) => e)
           .map((e) => `${declarePrefix}${e}`)
           .join(";\n");
       }
@@ -496,7 +499,7 @@ function ast2lua(ast, opts = {}) {
       }
       case "BlockStatement": {
         // TODO: wrap in do ... end block?
-        return `${ast.body.map(_ast2lua).join(";")}`;
+        return `${joinAst(ast.body, ";")}`;
       }
       case "CallExpression": {
         if (
@@ -799,7 +802,7 @@ end`;
         }
       }
       case "ClassBody": {
-        return `${ast.body.map(_ast2lua).join(",\n")}`;
+        return `${joinAst(ast.body, ",\n")}`;
       }
       case "ClassProperty": {
         return `${getSafeKey(ast.key)} = ${_ast2lua(ast.value)}`;
@@ -1055,7 +1058,7 @@ end`;
         return ast.superClass ? _ast2lua(ast.superClass) : `super`;
       }
       case "SequenceExpression": {
-        return `{${ast.expressions.map(_ast2lua).join(";")}}`;
+        return `{${joinAst(ast.expressions, ";")}}`;
       }
       case "SwitchStatement": {
         mergeSwitchCases(ast);
@@ -1094,6 +1097,7 @@ end`;
             // export const a = 1
             const assignmentsToken = ast.declaration.declarations
               .map(_ast2lua)
+              .filter((e) => e)
               .map((e) => `local ${e}`)
               .join(";\n");
             const exportsTokens = ast.declaration.declarations.map((d) => {
@@ -1149,14 +1153,13 @@ end`;
   if (needBitModule) {
     importSnippets.unshift(`local bit = require("bit")`);
   }
-  return `
-  ${importSnippets.join(";")}
+  return `${importSnippets.join(";")}
 
-  ${moduleExportInitToken}
-  ${headSnippets.join(";")}
-  ${jsBody}
-  ${tailSnippets.join(";")}
-  ${moduleReturnToken}`;
+${moduleExportInitToken}
+${headSnippets.join(";")}
+${jsBody}
+${tailSnippets.join(";")}
+${moduleReturnToken}`;
 }
 const removeWatermark = (code) => {
   return code.replace(/^\s*--\[\[(?:[\s\S]*?)\s*--\]\]\s*/, "");
@@ -1169,5 +1172,6 @@ function js2lua(s, opts) {
   luacode = ast2lua(js2ast(s), opts);
   opts.debug && p(luacode);
   return formatText(luacode);
+  // return removeWatermark(replaceTab(Beautify(luacode, {})));
 }
 export { defaultOptions, js2lua, js2ast };

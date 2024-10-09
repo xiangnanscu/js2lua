@@ -2,13 +2,14 @@
 
 import { parse } from "@babel/parser";
 import { formatText } from "lua-fmt";
+import { Beautify } from "lua-format";
 
 const ES_MODULE_NAME = "_M";
 const TMP_VAR_NAME = "__tmp";
 const ES_PAIRS = "esPairs";
 const CASE_EXP_NAME = "caseExp";
 const defaultOptions = {
-  debug: false,
+  debug: true,
   tagArrayExpression: true,
   importStatementHoisting: true,
   transform$SymbolToDollar: true,
@@ -425,7 +426,9 @@ function ast2lua(ast, opts = {}) {
     const token = `(function() ${conditions.join("\n")} end)()`;
     return [token, chainKey];
   };
-  const joinAst = (params, e = ",") => params.map(_ast2lua).join(e);
+  const joinAst = (params, e = ",") => {
+    return params.map(_ast2lua).join(e);
+  };
   function _ast2lua(ast) {
     // p({ ast })
     switch (ast.type) {
@@ -511,7 +514,11 @@ function ast2lua(ast, opts = {}) {
           end)()`;
         } else {
           const [callee, args] = getCallExpressionToken(ast);
-          return `${callee}(${args})`;
+          if (ast.callee.type == "ArrowFunctionExpression" || ast.callee.type == "FunctionExpression") {
+            return `(${callee})(${args})`;
+          } else {
+            return `${callee}(${args})`;
+          }
         }
       }
       // arshift = <function 1>,
@@ -784,7 +791,8 @@ end`;
               self:constructor();
               return self;
             end})
-          ${className}.__index = ${className};${ClassProperties};
+          ${className}.__index = ${className}
+          ${ClassProperties}
           function ${className}.new(cls) return setmetatable({${InstanceProperties}}, cls) end
           function ${className}:constructor() end
           ${classMethods}`;
@@ -1025,11 +1033,14 @@ end`;
       }
       case "ForStatement": {
         const continueLabel = getContinueLabelIfNeeded(ast);
+        if (ast.update.type == "UpdateExpression") {
+          ast.update.ExpressionStatement = true;
+        }
         return `do
   ${ast.init ? _ast2lua(ast.init) : ""}
   while ${ast.test ? _ast2lua(ast.test) : "1"} do
-  ${_ast2lua(ast.body)};
-  ${continueLabel};
+  ${_ast2lua(ast.body)}
+  ${continueLabel}
   ${_ast2lua(ast.update)}
   end
 end`;
@@ -1147,7 +1158,12 @@ end`;
   ${tailSnippets.join(";")}
   ${moduleReturnToken}`;
 }
-
+const removeWatermark = (code) => {
+  return code.replace(/^\s*--\[\[(?:[\s\S]*?)\s*--\]\]\s*/, "");
+};
+const replaceTab = (code) => {
+  return code.replace(/\t/g, "  ");
+};
 function js2lua(s, opts) {
   let luacode = "";
   luacode = ast2lua(js2ast(s), opts);

@@ -3,6 +3,7 @@ import { ref, computed, watch, reactive } from "vue";
 import { js2lua as _js2lua, js2ast as _js2ast, defaultOptions as  optionNamesDict} from "./js2lua.mjs";
 import fs from "file-saver";
 import packages from "../package.json";
+import jsInit from './jsInit.js?raw'
 
 const showjsAst = ref(false);
 const showJscode = ref(false)
@@ -22,19 +23,7 @@ function js2ast(js, opts) {
     return _js2ast(`throw new Error("ERROR: ${error.message}")`, opts);
   }
 }
-const jscode = ref(`\
-class Child extends Parent {
-  static myMethod(msg) {
-    super.myMethod(msg);
-  }
-  constructor(x, y) {
-    super(x)
-    this.y = y
-  }
-  myMethod(msg) {
-    super.myMethod(msg);
-  }
-}`);
+const jscode = ref(jsInit);
 const optionNames = Object.keys(optionNamesDict);
 const selectNames = ref(
   Object.entries(optionNamesDict)

@@ -618,6 +618,9 @@ while (1) {
   print("a");
 }
 
+for(;;) {
+
+}
 ```
 ### lua
 ```lua
@@ -626,7 +629,6 @@ do
     local i = 0
     while i <= #arr do
         print(i)
-
         i = i + 1
     end
 end
@@ -634,7 +636,6 @@ do
     i = 0
     while i < 10 do
         print(1)
-
         i = i + 2
     end
 end
@@ -655,6 +656,10 @@ for key, __ in pairs(arr) do
 end
 while 1 do
     print("a")
+end
+do
+    while 1 do
+    end
 end
 
 ```

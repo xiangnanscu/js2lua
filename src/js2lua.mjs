@@ -32,7 +32,11 @@ const defaultOptions = {
 function p() {
   console.log.apply(this, arguments);
 }
-
+function removeEmptyLines(str) {
+  return str.split('\n')
+            .filter(line => line.trim() !== '')
+            .join('\n');
+}
 function js2ast(code) {
   const ast = parse(code, {
     plugins: ["typescript"],
@@ -1036,17 +1040,17 @@ end`;
       }
       case "ForStatement": {
         const continueLabel = getContinueLabelIfNeeded(ast);
-        if (ast.update.type == "UpdateExpression") {
+        if (ast.update?.type == "UpdateExpression") {
           ast.update.ExpressionStatement = true;
         }
-        return `do
+        return removeEmptyLines(`do
   ${ast.init ? _ast2lua(ast.init) : ""}
   while ${ast.test ? _ast2lua(ast.test) : "1"} do
   ${_ast2lua(ast.body)}
   ${continueLabel}
-  ${_ast2lua(ast.update)}
+  ${ast.update ? _ast2lua(ast.update) : ""}
   end
-end`;
+end`);
       }
       case "AssignmentPattern": {
         return `${_ast2lua(ast.left)}`;

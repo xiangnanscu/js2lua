@@ -23,3 +23,7 @@ for (const key in arr) {
 while (1) {
   print("a");
 }
+
+for(;;) {
+
+}

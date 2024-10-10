@@ -12,8 +12,8 @@ dependencies:
     specifier: ^2.6.0
     version: 2.6.0
   lua-format:
-    specifier: ^1.5.1
-    version: 1.5.1
+    specifier: ^1.5.2
+    version: 1.5.2
   yargs-parser:
     specifier: ^21.1.1
     version: 21.1.1
@@ -1215,8 +1215,8 @@ packages:
       luaparse: git@github.com+oxyc/luaparse/ac42a00ebf4020b8c9d3219e4b0f84bf7ce6e802
     dev: false
 
-  /lua-format@1.5.1:
-    resolution: {integrity: sha512-czKaBItm8G3eGF6ICZHuWdvEwSWlDQCAHZtJ3xpyFXZNzb1/LDCopmWjwHKQkTrhtAulwl7zCGVGelnrfo50nQ==}
+  /lua-format@1.5.2:
+    resolution: {integrity: sha512-/MWt8pfA5qY1LNVf+CqRUPn/tGlp1OoTF1JhwyD7Q3qpfNX0UxVGUicpkBVnDsqoEtBTb/gJPy8ca3Jw0Lsq3Q==}
     dev: false
 
   /luaparse@0.2.1:

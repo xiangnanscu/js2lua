@@ -32,8 +32,8 @@ const defaultOptions = {
 function p() {
   console.log.apply(this, arguments);
 }
-function removeEmptyLines(str) {
-  return str.split('\n')
+function removeEmptyLines(list) {
+  return list
             .filter(line => line.trim() !== '')
             .join('\n');
 }
@@ -695,22 +695,31 @@ function ast2lua(ast, opts = {}) {
         ast.left.noPrefix = true;
         if (ast.left.declarations[0]?.id.type == "ArrayPattern") {
           const pairsName = hasIdentifier(ast.body, ES_PAIRS) ? TMP_VAR_NAME : ES_PAIRS;
-          return `for _, ${pairsName} in ipairs(${_ast2lua(ast.right)}) do
-           local ${_ast2lua(ast.left)} = unpack(${pairsName});
-           ${_ast2lua(ast.body)}
-           ${continueLabel} end`;
+          return removeEmptyLines([
+            `for _, ${pairsName} in ipairs(${_ast2lua(ast.right)}) do`,
+            `local ${_ast2lua(ast.left)} = unpack(${pairsName});`,
+            _ast2lua(ast.body),
+            continueLabel,
+            `end`
+          ]);
         } else {
-          return `for _, ${_ast2lua(ast.left)} in ipairs(${_ast2lua(ast.right)}) do
-           ${_ast2lua(ast.body)}
-           ${continueLabel} end`;
+          return removeEmptyLines([
+            `for _, ${_ast2lua(ast.left)} in ipairs(${_ast2lua(ast.right)}) do`,
+            _ast2lua(ast.body),
+            continueLabel,
+            `end`
+          ]);
         }
       }
       case "ForInStatement": {
         const continueLabel = getContinueLabelIfNeeded(ast);
         ast.left.noPrefix = true;
-        return `for ${_ast2lua(ast.left)}, __ in pairs(${_ast2lua(ast.right)})
-        do ${_ast2lua(ast.body)}
-        ${continueLabel} end`;
+        return removeEmptyLines([
+          `for ${_ast2lua(ast.left)}, __ in pairs(${_ast2lua(ast.right)}) do`,
+          _ast2lua(ast.body),
+          continueLabel,
+          `end`
+        ]);
       }
       case "LogicalExpression": {
         const op = logicMap[ast.operator] || ast.operator;
@@ -1074,9 +1083,12 @@ end`;
       }
       case "WhileStatement": {
         const continueLabel = getContinueLabelIfNeeded(ast);
-        return `while ${_ast2lua(ast.test)} do
-        ${_ast2lua(ast.body)}
-        ${continueLabel} end`;
+        return removeEmptyLines([
+          `while ${_ast2lua(ast.test)} do`,
+          _ast2lua(ast.body),
+          continueLabel,
+          `end`
+        ]);
       }
       case "ArrowFunctionExpression": {
         const funcPrefixToken = getFunctionSnippet(ast.params);
@@ -1109,14 +1121,16 @@ end`;
         if (ast.update?.type == "UpdateExpression") {
           ast.update.ExpressionStatement = true;
         }
-        return removeEmptyLines(`do
-  ${ast.init ? _ast2lua(ast.init) : ""}
-  while ${ast.test ? _ast2lua(ast.test) : "1"} do
-  ${_ast2lua(ast.body)}
-  ${continueLabel}
-  ${ast.update ? _ast2lua(ast.update) : ""}
-  end
-end`);
+        return removeEmptyLines([
+          `do`,
+          ast.init ? _ast2lua(ast.init) : "",
+          `while ${ast.test ? _ast2lua(ast.test) : "1"} do`,
+          _ast2lua(ast.body),
+          continueLabel,
+          ast.update ? _ast2lua(ast.update) : "",
+          `end`,
+          `end`
+        ]);
       }
       case "AssignmentPattern": {
         return `${_ast2lua(ast.left)}`;
@@ -1234,14 +1248,12 @@ ${moduleReturnToken}`;
 const removeWatermark = (code) => {
   return code.replace(/^\s*--\[\[(?:[\s\S]*?)\s*--\]\]\s*/, "");
 };
-const replaceTab = (code) => {
-  return code.replace(/\t/g, "  ");
-};
+
 function js2lua(s, opts) {
   let luacode = "";
   luacode = ast2lua(js2ast(s), opts);
   opts.debug && p(luacode);
-  return formatText(luacode);
-  // return removeWatermark(replaceTab(Beautify(luacode, {})));
+  // return formatText(luacode);
+  return removeWatermark(Beautify(luacode, {}));
 }
 export { defaultOptions, js2lua, js2ast };

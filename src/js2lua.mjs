@@ -2,7 +2,8 @@
 
 import { parse } from "@babel/parser";
 import { formatText } from "lua-fmt";
-import { Beautify } from "lua-format";
+// import { Beautify } from "lua-format";
+import luamin from "./luamin.js";
 
 const ES_MODULE_NAME = "_M";
 const TMP_VAR_NAME = "__tmp";
@@ -1254,6 +1255,7 @@ function js2lua(s, opts) {
   luacode = ast2lua(js2ast(s), opts);
   opts.debug && p(luacode);
   // return formatText(luacode);
-  return removeWatermark(Beautify(luacode, {}));
+  // return removeWatermark(Beautify(luacode, {}));
+  return luamin.Beautify(luacode, {})
 }
 export { defaultOptions, js2lua, js2ast };

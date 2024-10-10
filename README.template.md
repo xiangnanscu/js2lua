@@ -6,7 +6,7 @@ Writing LuaJIT with the expressiveness of JavaScript.
 # Install
 
 ```sh
-npm install -g @xiangnanscu/js2lua
+npm install @xiangnanscu/js2lua
 ```
 
 # Usage

@@ -147,9 +147,9 @@ watch(checkAll, (checkAll) => {
         <tr>
           <th colspan="3">
             <h1>take a look at features:</h1>
-            <template v-for="(e, i) in tableHtmls" :key="i">
+            <div v-for="(e, i) in tableHtmls" :key="i">
               <a class="link-block" :href="`#${e.name}`">{{ e.name }}</a>
-            </template>
+            </div>
           </th>
         </tr>
       </thead>
@@ -165,10 +165,10 @@ watch(checkAll, (checkAll) => {
               <textarea class="td-textarea form-control" v-model="e.jscode"></textarea>
             </td>
             <td>
-              <highlightjs language="javascript" :code="e.jscode" />
+              <highlightjs language="javascript" :code="e.jscode" style="width: 42em"/>
             </td>
             <td>
-              <highlightjs language="lua" :code="e.luacode" />
+              <highlightjs language="lua" :code="e.luacode"  style="width: 42em"/>
             </td>
           </tr>
         </template>
@@ -189,12 +189,11 @@ h3 {
 .td-wrap {
   padding: 0;
   height: 10em;
-  width: 90em;
 }
 .td-textarea {
   display: block;
   height: 100%;
-  width: 100%;
+  width: 400px;
   border: 0;
   box-sizing: border-box;
 }

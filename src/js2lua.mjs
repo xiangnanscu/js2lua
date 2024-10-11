@@ -12,6 +12,7 @@ const CASE_EXP_NAME = "caseExp";
 const defaultOptions = {
   debug: false,
   tagArrayExpression: true,
+  useColonOnMethod: true,
   importStatementHoisting: true,
   transform$SymbolToDollar: true,
   transformToString: true,
@@ -401,7 +402,7 @@ function ast2lua(ast, opts = {}) {
       } else if (ast.callee.computed) {
         return [`${funcObject}[${method}]`, `${funcObject}${ast.arguments.length > 0 ? "," : ""}${argumentsToken}`];
       } else {
-        return [`${funcObject}:${method}`, argumentsToken];
+        return [`${funcObject}${opts.useColonOnMethod ? ":" : "."}${method}`, argumentsToken];
       }
     } else {
       // foo()
@@ -1238,13 +1239,14 @@ end`;
   if (needBitModule) {
     importSnippets.unshift(`local bit = require("bit")`);
   }
-  return `${importSnippets.join(";")}
-
-${moduleExportInitToken}
-${headSnippets.join(";")}
-${jsBody}
-${tailSnippets.join(";")}
-${moduleReturnToken}`;
+  return removeEmptyLines([
+    `${importSnippets.join(";")}`,
+    `${moduleExportInitToken}`,
+    `${headSnippets.join(";")}`,
+    `${jsBody}`,
+    `${tailSnippets.join(";")}`,
+    `${moduleReturnToken}`
+  ]);
 }
 const removeWatermark = (code) => {
   return code.replace(/^\s*--\[\[(?:[\s\S]*?)\s*--\]\]\s*/, "");

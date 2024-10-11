@@ -10,7 +10,7 @@ const TMP_VAR_NAME = "__tmp";
 const ES_PAIRS = "esPairs";
 const CASE_EXP_NAME = "caseExp";
 const defaultOptions = {
-  debug: true,
+  debug: false,
   tagArrayExpression: true,
   importStatementHoisting: true,
   transform$SymbolToDollar: true,

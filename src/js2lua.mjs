@@ -729,13 +729,24 @@ function ast2lua(ast, opts = {}) {
         const right = _ast2lua(ast.right);
         let s;
         if (op == "??") {
-          s = `(function()
-            if ${left} == nil then
-              return ${right}
-            else
-              return ${left}
-            end
-          end)()`;
+          if (ast.left.type == 'Identifier') {
+            s = `(function()
+              if ${left} == nil then
+                return ${right}
+              else
+                return ${left}
+              end
+            end)()`;
+          } else {
+            s = `(function()
+              local ${TMP_VAR_NAME} = ${left}
+              if ${TMP_VAR_NAME} == nil then
+                return ${right}
+              else
+                return ${TMP_VAR_NAME}
+              end
+            end)()`;
+          }
         } else {
           s = `${left} ${op} ${right}`;
         }

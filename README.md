@@ -964,6 +964,7 @@ a.b?.c.d?.();
 
 // nullish
 a ?? 'hello';
+a.b() ?? 'hello';
 const d = {}
 d.n ??= 100;
 ```
@@ -1020,6 +1021,14 @@ end)();
     return 'hello'
   else
     return a
+  end
+end)();
+(function()
+  local __tmp = a:b()
+  if __tmp == nil then
+    return 'hello'
+  else
+    return __tmp
   end
 end)();
 local d = {};

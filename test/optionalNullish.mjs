@@ -16,5 +16,6 @@ a.b?.c.d?.();
 
 // nullish
 a ?? 'hello';
+a.b() ?? 'hello';
 const d = {}
 d.n ??= 100;

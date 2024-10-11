@@ -1258,6 +1258,6 @@ function js2lua(s, opts) {
   opts.debug && p(luacode);
   // return formatText(luacode);
   // return removeWatermark(Beautify(luacode, {}));
-  return luamin.Beautify(luacode, {})
+  return luamin.Beautify(luacode, {}).trim()
 }
 export { defaultOptions, js2lua, js2ast };

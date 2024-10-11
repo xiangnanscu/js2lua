@@ -122,7 +122,6 @@ js2lua(`let a = 1`, { importStatementHoisting: true });
 ```
 ### lua
 ```lua
-
 (function()
   print(1)
 end)();
@@ -150,10 +149,6 @@ const e = 1, f = 'a', { o1, o2: o22 } = object, [a1, a2] = array
 ```
 ### lua
 ```lua
-
-
-
-
 local u;
 local v;
 u, v = unpack(array{
@@ -267,7 +262,6 @@ p1.echoNumbersLength.apply(p2, [1, 2])
 ```
 ### lua
 ```lua
-
 local BasePosition = setmetatable({}, {
   __call = function(t)
     local self = t:new();
@@ -368,10 +362,7 @@ export function foo() { }
 ```
 ### lua
 ```lua
-
-
 local _M = {}
-
 local c = 1;
 local d = 2;
 local e = 3;
@@ -429,10 +420,6 @@ Echo.prototype.echoY = function () {
 ```
 ### lua
 ```lua
-
-
-
-
 local foo = {
   bar = function ()
   end
@@ -565,10 +552,6 @@ if (a === 1) {
 ```
 ### lua
 ```lua
-
-
-
-
 local a = 1;
 if a == 1 then
   print(a)
@@ -605,7 +588,6 @@ import d, { e as eAlias, f } from "bar"
 ```
 ### lua
 ```lua
-
 local g = require("bar").default;
 local foo = require("bar").foo;
 local b = require("bar").a;
@@ -626,10 +608,6 @@ const i = a[0]
 ```
 ### lua
 ```lua
-
-
-
-
 local a = array{};
 local i = a[1]
 ```
@@ -647,10 +625,6 @@ const arr = [true, false]
 ```
 ### lua
 ```lua
-
-
-
-
 local Obj = {
   ["and"] = 'real'
 };
@@ -699,10 +673,6 @@ for(;;) {
 ```
 ### lua
 ```lua
-
-
-
-
 local arr = array{};
 do
   local i = 0
@@ -754,10 +724,6 @@ let [ok4, ...res4] = xpcall(foo)
 ```
 ### lua
 ```lua
-
-
-
-
 local ok, res = pcall(foo);
 local ok2, res2 = xpcall(foo);
 local e1, e2 = unpack(bar);
@@ -804,10 +770,6 @@ const d = {
 ```
 ### lua
 ```lua
-
-
-
-
 local foo = 'bar';
 local d1 = {
   foo = 1,
@@ -885,11 +847,7 @@ a **= 2
 ```
 ### lua
 ```lua
-
 local bit = require("bit")
-
-
-
 local obj = {};
 local a = 1;
 type(a);
@@ -1011,10 +969,6 @@ d.n ??= 100;
 ```
 ### lua
 ```lua
-
-
-
-
 local a = 1;
 local b = 'foo';
 local obj = {};
@@ -1094,10 +1048,6 @@ const constraints = {
 ```
 ### lua
 ```lua
-
-
-
-
 local foo = {};
 foo.bar = nil;
 print(# foo);
@@ -1127,10 +1077,6 @@ const s6 = a + b + c + d + f
 ```
 ### lua
 ```lua
-
-
-
-
 local s1 = b + c;
 local s2 = b .. 'c';
 local s3 = 'c' .. b;
@@ -1149,10 +1095,6 @@ const { x: k1, y: k2, ...k } = { ...d, foo: 'bar' }
 ```
 ### lua
 ```lua
-
-
-
-
 local a = array{
   1,
   2,
@@ -1209,10 +1151,6 @@ const s = `1.${2}.3.${'4'}.${foo}`
 ```
 ### lua
 ```lua
-
-
-
-
 local foo = 5;
 local s = string.format([=[1.%s.3.%s.%s]=], 2, '4', foo)
 ```
@@ -1243,10 +1181,6 @@ switch (c) {
 ```
 ### lua
 ```lua
-
-
-
-
 local c = 'v2';
 repeat
   local caseExp = c
@@ -1289,10 +1223,6 @@ if (test) {
 ```
 ### lua
 ```lua
-
-
-
-
 local test = '';
 if test then
   error('!')
@@ -1326,12 +1256,8 @@ Array.isArray(1)
 ```
 ### lua
 ```lua
-
 local isarray = require("table.isarray");
 local cjson = require("cjson")
-
-
-
 local a = {
   b = ''
 };
@@ -1365,10 +1291,6 @@ try {
 ```
 ### lua
 ```lua
-
-
-
-
 local ok  , _err = pcall(function()
   local res = math.floor('fooo');
   print(res)
@@ -1402,10 +1324,6 @@ if (--i) {
 ```
 ### lua
 ```lua
-
-
-
-
 i = i + 1;
 i = i - 1;
 local a = (function ()
